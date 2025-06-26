@@ -11,7 +11,7 @@ pub enum BseAuxiliary {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct BseGtoElectronShell {
+pub struct BseElectronShell {
     pub function_type: String,
     pub region: String,
     pub angular_momentum: Vec<i32>,
@@ -24,7 +24,7 @@ pub struct BseGtoElectronShell {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BseGtoElement {
     pub references: Vec<String>,
-    pub electron_shells: Vec<BseGtoElectronShell>,
+    pub electron_shells: Vec<BseElectronShell>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -150,7 +150,7 @@ pub struct BseBasisReference {
 pub struct BseBasisElement {
     pub references: Vec<BseBasisReference>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub electron_shells: Option<Vec<BseGtoElectronShell>>,
+    pub electron_shells: Option<Vec<BseElectronShell>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ecp_potentials: Option<Vec<BseEcpPotential>>,
     #[serde(skip_serializing_if = "Option::is_none")]
