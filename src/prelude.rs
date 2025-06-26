@@ -15,6 +15,7 @@ pub use crate::fields::{
 // for developers
 
 pub(crate) use cached::proc_macro::{cached, once};
+pub(crate) use derive_builder::{Builder, UninitializedFieldError};
 pub(crate) use duplicate::duplicate_item;
 pub(crate) use itertools::*;
 pub(crate) use serde::de::{Unexpected, Visitor};

@@ -10,6 +10,7 @@ cached = { version = "0.55" }
 duplicate = { version = "2.0" }
 textwrap = { version = "0.16" }
 itertools = { version = "0.14" }
+derive_builder = { version = "0.20" }
 
 [profile.dev]
 opt-level = 2

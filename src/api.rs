@@ -66,6 +66,8 @@ pub fn get_bse_data_dir() -> Option<String> {
 
 /* #endregion */
 
+/* #region read metadata */
+
 /// Obtain the metadata for all basis sets.
 ///
 /// The metadata includes information such as the display name of the basis set, its versions, and
@@ -77,14 +79,125 @@ pub fn get_bse_data_dir() -> Option<String> {
 ///
 /// - `data_dir`: Data directory with all the basis set information. By default, it is in the 'data'
 ///   subdirectory of basis_set_exchange project.
-#[cached(key = "String", convert = "{data_dir.to_string()}")]
-pub fn get_metadata(data_dir: &str) -> BseRootMetadata {
+pub fn get_metadata(data_dir: &str) -> HashMap<String, BseRootMetadata> {
     get_metadata_f(data_dir).unwrap()
 }
 
-#[cached(key = "String", convert = "{data_dir.to_string()}")]
-pub fn get_metadata_f(data_dir: &str) -> Result<BseRootMetadata, BseError> {
+#[cached(key = "String", convert = r#"{ data_dir.to_string() }"#)]
+pub fn get_metadata_f(data_dir: &str) -> Result<HashMap<String, BseRootMetadata>, BseError> {
     let metadata_path = format!("{data_dir}/METADATA.json");
-    let metadata: BseRootMetadata = serde_json::from_str(&std::fs::read_to_string(metadata_path)?)?;
+    let metadata = serde_json::from_str(&std::fs::read_to_string(metadata_path)?)?;
     Ok(metadata)
+}
+
+fn get_basis_metadata(name: &str, data_dir: &str) -> Result<BseRootMetadata, BseError> {
+    // Transform the name into an internal representation
+    let tr_name = misc::transform_basis_name(name);
+
+    // Get the metadata for all basis sets
+    let metadata = get_metadata_f(data_dir)?;
+
+    if metadata.contains_key(&tr_name) {
+        Ok(metadata[&tr_name].clone())
+    } else {
+        bse_raise!(
+            DataNotFound,
+            "Basis set `{name}` not found in metadata. Available basis sets: {:?}",
+            metadata.keys().collect_vec()
+        )?
+    }
+}
+
+/* #endregion */
+
+/* #region get_basis */
+
+#[derive(Builder, Debug, Clone, PartialEq, Eq)]
+#[builder(build_fn(error = "BseError"))]
+pub struct BseGetBasisArgs {
+    #[builder(default)]
+    elements: Option<Vec<i32>>,
+
+    #[builder(default)]
+    version: Option<i32>,
+
+    #[builder(default = false)]
+    uncontract_general: bool,
+
+    #[builder(default = false)]
+    uncontract_spdf: bool,
+
+    #[builder(default = false)]
+    uncontract_segmented: bool,
+
+    #[builder(default = false)]
+    remove_free_primitives: bool,
+
+    #[builder(default = false)]
+    make_general: bool,
+
+    #[builder(default = false)]
+    optimize_general: bool,
+
+    #[builder(default = 0)]
+    augment_diffuse: i32,
+
+    #[builder(default = 0)]
+    augment_steep: i32,
+
+    #[builder(default = 0)]
+    get_aux: i32,
+
+    #[builder(default)]
+    data_dir: Option<String>,
+
+    #[builder(default = true)]
+    header: bool,
+}
+
+pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseError> {
+    let data_dir = args.data_dir.clone().or(get_bse_data_dir());
+    if data_dir.is_none() {
+        return bse_raise!(
+            DataNotFound,
+            "No data directory specified. Please set `BSE_DATA_DIR` environment variable."
+        )?;
+    }
+    let data_dir = data_dir.unwrap();
+
+    let bs_data = get_basis_metadata(name, &data_dir)?;
+
+    let ver = match args.version {
+        Some(v) => v,
+        None => bs_data.latest_version,
+    };
+    if !bs_data.versions.contains_key(&ver) {
+        bse_raise!(
+            DataNotFound,
+            "Version {ver} not found in metadata. Available versions: {:?}",
+            bs_data.versions.keys().collect_vec()
+        )?;
+    }
+    let table_relpath = &bs_data.versions[&ver].file_relpath;
+    let mut basis_dict = compose::compose_table_basis_f(table_relpath, &data_dir)?;
+    basis_dict.name = bs_data.display_name.clone();
+
+    Ok(basis_dict)
+}
+
+/* #endregion */
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_basis() {
+        let data_dir = get_bse_data_dir().expect("Data directory not found");
+        let args = BseGetBasisArgsBuilder::default().data_dir(Some(data_dir.clone())).build().unwrap();
+        let basis = get_basis_f("sto-3g", args).expect("Failed to get basis set");
+        assert_eq!(basis.name, "STO-3G");
+        let basis_json = serde_json::to_string_pretty(&basis).expect("Failed to serialize basis set to JSON");
+        println!("Basis set JSON: {basis_json}");
+    }
 }

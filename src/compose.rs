@@ -23,6 +23,18 @@ pub fn compose_elemental_basis(file_relpath: &str, data_dir: &str) -> HashMap<i3
     compose_elemental_basis_f(file_relpath, data_dir).unwrap()
 }
 
+pub(crate) fn whole_basis_types(basis_elements: &HashMap<i32, BseBasisElement>) -> Vec<String> {
+    let mut function_types = HashSet::new();
+    for basis_element in basis_elements.values() {
+        if let Some(shells) = &basis_element.electron_shells {
+            for shell in shells {
+                function_types.insert(shell.function_type.clone());
+            }
+        }
+    }
+    function_types.into_iter().sorted().collect()
+}
+
 pub fn compose_elemental_basis_f(
     file_relpath: &str,
     data_dir: &str,
@@ -149,17 +161,7 @@ pub fn compose_table_basis_f(file_relpath: &str, data_dir: &str) -> Result<BseBa
         })?;
 
     // function types are obtained by iterating elements.
-    let function_types = {
-        let mut function_types = HashSet::new();
-        for basis_element in basis_elements.values() {
-            if let Some(shells) = &basis_element.electron_shells {
-                for shell in shells {
-                    function_types.insert(shell.function_type.clone());
-                }
-            }
-        }
-        function_types.into_iter().sorted().collect_vec()
-    };
+    let function_types = whole_basis_types(&basis_elements);
 
     // read skeleton metadata
     let name_prefix = skel_table_relpath.split('.').next().unwrap_or("");

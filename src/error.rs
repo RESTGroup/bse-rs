@@ -1,4 +1,5 @@
-use std::{error::Error, fmt::Display};
+use std::error::Error;
+use std::fmt::Display;
 
 #[derive(Debug, Clone)]
 pub enum BseError {
@@ -9,6 +10,7 @@ pub enum BseError {
     IOError(String),
     SerdeJsonError(String),
     Miscellaneous(String),
+    UninitializedFieldError(derive_builder::UninitializedFieldError),
 }
 
 impl Display for BseError {
@@ -28,6 +30,12 @@ impl From<std::io::Error> for BseError {
 impl From<serde_json::Error> for BseError {
     fn from(err: serde_json::Error) -> Self {
         BseError::SerdeJsonError(err.to_string())
+    }
+}
+
+impl From<derive_builder::UninitializedFieldError> for BseError {
+    fn from(err: derive_builder::UninitializedFieldError) -> Self {
+        BseError::UninitializedFieldError(err)
     }
 }
 
