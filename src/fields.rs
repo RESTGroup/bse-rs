@@ -140,7 +140,8 @@ pub struct BseBasisReference {
     pub reference_keys: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct BseBasisElement {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub electron_shells: Option<Vec<BseElectronShell>>,

@@ -4,21 +4,21 @@ use crate::prelude::*;
 
 /// Creates a 'table' basis from an table json file.
 ///
-/// This function reads the info from the given file, and reads all the elemental basis set
-/// information from the files listed therein. It then composes all the information together into
-/// one 'table' basis dictionary
+/// This function reads the info from the given file, and reads all the
+/// elemental basis set information from the files listed therein. It then
+/// composes all the information together into one 'table' basis dictionary
 ///
-/// Note that the data returned from this function will not be shared, even if the function is
-/// called again with the same arguments.
+/// Note that the data returned from this function will not be shared, even if
+/// the function is called again with the same arguments.
 pub fn compose_table_basis(file_relpath: &str, data_dir: &str) -> BseBasis {
     compose_table_basis_f(file_relpath, data_dir).unwrap()
 }
 
 /// Creates an 'elemental' basis from an elemental json file.
 ///
-/// This function reads the info from the given file, and reads all the component basis set
-/// information from the files listed therein. It then composes all the information together into
-/// one 'elemental' basis dictionary
+/// This function reads the info from the given file, and reads all the
+/// component basis set information from the files listed therein. It then
+/// composes all the information together into one 'elemental' basis dictionary
 pub fn compose_elemental_basis(file_relpath: &str, data_dir: &str) -> HashMap<String, BseBasisElement> {
     compose_elemental_basis_f(file_relpath, data_dir).unwrap()
 }
@@ -73,8 +73,7 @@ pub fn compose_elemental_basis_f(
     // compose basis elements from skeleton element
     let mut basis_elements = HashMap::new();
     for (atomic_number, skel_element) in &skel_element.elements {
-        let mut basis_element =
-            BseBasisElement { references: vec![], electron_shells: None, ecp_potentials: None, ecp_electrons: None };
+        let mut basis_element = BseBasisElement::default();
 
         for component_relpath in &skel_element.components {
             match &skel_component_map[component_relpath] {
@@ -149,9 +148,9 @@ pub fn compose_table_basis_f(file_relpath: &str, data_dir: &str) -> Result<BseBa
         basis_elements.insert(atomic_number.clone(), skel_element_map[skl_element_realpath][atomic_number].clone());
     }
 
-    // version is also defined in metadata (field version), but can be inferred from the file name.
-    // take version `1` from file `def2-TZVP.1.table.json`, which is the last third value.
-    // if version is not found, use -1 as default.
+    // version is also defined in metadata (field version), but can be inferred from
+    // the file name. take version `1` from file `def2-TZVP.1.table.json`, which
+    // is the last third value. if version is not found, use -1 as default.
     let version = catch_unwind(|| skel_table_relpath.split('.').rev().collect_vec()[2].to_string()).map_err(|_| {
         BseError::DataError(format!(
             "{}BseError::DataError: Version annotation not found in {skel_table_relpath}",

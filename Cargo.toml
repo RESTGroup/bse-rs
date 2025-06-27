@@ -11,6 +11,8 @@ duplicate = { version = "2.0" }
 textwrap = { version = "0.16" }
 itertools = { version = "0.14" }
 derive_builder = { version = "0.20" }
+lazy_static = { version = "1.5" }
+phf = { version = "0.12", features = ["macros"] }
 
 [profile.dev]
 opt-level = 2

@@ -1,3 +1,5 @@
+tests/python_ref/*.json
+
 tmp*
 tmp
 profile
