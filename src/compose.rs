@@ -31,6 +31,9 @@ pub(crate) fn whole_basis_types(basis_elements: &HashMap<String, BseBasisElement
                 function_types.insert(shell.function_type.clone());
             }
         }
+        if basis_element.ecp_potentials.is_some() {
+            function_types.insert("ecp_type".to_string());
+        }
     }
     function_types.into_iter().sorted().collect()
 }
@@ -41,7 +44,7 @@ pub fn compose_elemental_basis_f(
 ) -> Result<HashMap<String, BseBasisElement>, BseError> {
     // read skeleton element
     let skel_element_relpath = file_relpath;
-    let skel_element = read_skel_element_file_f(skel_element_relpath, data_dir)?;
+    let skel_element = fields::read_skel_element_file_f(skel_element_relpath, data_dir)?;
 
     let mut skel_component_set = HashSet::new();
     for skel_component_realpaths in skel_element.elements.values() {
@@ -61,9 +64,9 @@ pub fn compose_elemental_basis_f(
         if skel_component_map.contains_key(&skel_component_realpath) {
             continue; // already read
         }
-        if let Ok(skel_component) = read_skel_component_gto_file_f(&skel_component_realpath, data_dir) {
+        if let Ok(skel_component) = fields::read_skel_component_gto_file_f(&skel_component_realpath, data_dir) {
             skel_component_map.insert(skel_component_realpath, BseSkelComponent::Gto(skel_component));
-        } else if let Ok(skel_component) = read_skel_component_ecp_file_f(&skel_component_realpath, data_dir) {
+        } else if let Ok(skel_component) = fields::read_skel_component_ecp_file_f(&skel_component_realpath, data_dir) {
             skel_component_map.insert(skel_component_realpath, BseSkelComponent::Ecp(skel_component));
         } else {
             bse_raise!(DataError, "Internal bug: read skeleton component json failed {skel_component_realpath}")?;
@@ -129,7 +132,7 @@ pub fn compose_elemental_basis_f(
 pub fn compose_table_basis_f(file_relpath: &str, data_dir: &str) -> Result<BseBasis, BseError> {
     // read skeleton table
     let skel_table_relpath = file_relpath;
-    let skel_table = read_skel_table_file_f(skel_table_relpath, data_dir)?;
+    let skel_table = fields::read_skel_table_file_f(skel_table_relpath, data_dir)?;
 
     // read skeleton elements and maps
     let mut skel_element_map = HashMap::new();
@@ -164,7 +167,7 @@ pub fn compose_table_basis_f(file_relpath: &str, data_dir: &str) -> Result<BseBa
     // read skeleton metadata
     let name_prefix = skel_table_relpath.split('.').next().unwrap_or("");
     let metadata_relpath = format!("{name_prefix}.metadata.json");
-    let skel_metadata = read_skel_metadata_file_f(&metadata_relpath, data_dir)?;
+    let skel_metadata = fields::read_skel_metadata_file_f(&metadata_relpath, data_dir)?;
 
     // temporarily use the first name in metadata.names
     let name = skel_metadata.names.first().cloned().unwrap();

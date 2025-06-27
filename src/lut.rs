@@ -60,6 +60,19 @@ pub fn element_Z_from_sym(sym: &str) -> Option<i32> {
     ELEMENT_SYM_MAP.get(&sym_lower).map(|(_, z, _)| *z)
 }
 
+/// Obtain the Z (charge) number of an element given its name.
+#[inline]
+pub fn element_Z_from_str(s: &str) -> Option<i32> {
+    if let Ok(z) = s.parse::<i32>() {
+        return Some(z);
+    } else if let Some(data) = element_data_from_sym(s) {
+        return Some(data.1);
+    } else if let Some(data) = element_data_from_name(s) {
+        return Some(data.1);
+    }
+    None
+}
+
 /// Convert an angular momentum integer to a character.
 ///
 /// The input is a list (to handle sp, spd, ... orbitals). The return value is a

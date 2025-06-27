@@ -1,7 +1,7 @@
 //! Main interface to Basis Set Exchange internal basis sets.
 //!
-//! This module contains the interface for getting basis set data and references from the internal
-//! data store of basis sets.
+//! This module contains the interface for getting basis set data and references
+//! from the internal data store of basis sets.
 
 use crate::{error::BseError, prelude::*};
 
@@ -18,8 +18,8 @@ pub static BSE_DATA_DIR_SPECIFIED: Mutex<Option<String>> = Mutex::new(None);
 
 /// Set the local directory for the basis set exchange data.
 ///
-/// This directory is usually at `basis_set_exchange/data` of the repository root of
-/// <https://github.com/MolSSI-BSE/basis_set_exchange>.
+/// This directory is usually at `basis_set_exchange/data` of the repository
+/// root of <https://github.com/MolSSI-BSE/basis_set_exchange>.
 pub fn specify_bse_data_dir(dir: String) {
     let mut specified = BSE_DATA_DIR_SPECIFIED.lock().unwrap();
     *specified = Some(dir);
@@ -46,7 +46,8 @@ fn get_bse_data_dir_manifest() -> String {
 /// This function checks the following directories in order:
 /// 1. The directory specified by `specify_bse_data_dir`.
 /// 2. The directory specified by the environment variable `BSE_DATA_DIR`.
-/// 3. The directory specified by the `CARGO_MANIFEST_DIR` (the directory where your crate built).
+/// 3. The directory specified by the `CARGO_MANIFEST_DIR` (the directory where
+///    your crate built).
 pub fn get_bse_data_dir() -> Option<String> {
     let dir_specified = get_bse_data_dir_specified();
     let dir_env = get_bse_data_dir_env();
@@ -70,15 +71,15 @@ pub fn get_bse_data_dir() -> Option<String> {
 
 /// Obtain the metadata for all basis sets.
 ///
-/// The metadata includes information such as the display name of the basis set, its versions, and
-/// what elements are included in the basis set.
+/// The metadata includes information such as the display name of the basis set,
+/// its versions, and what elements are included in the basis set.
 ///
 /// The data is read from the METADATA.json file in the `data_dir` directory.
 ///
 /// # Arguments
 ///
-/// - `data_dir`: Data directory with all the basis set information. By default, it is in the 'data'
-///   subdirectory of basis_set_exchange project.
+/// - `data_dir`: Data directory with all the basis set information. By default,
+///   it is in the 'data' subdirectory of basis_set_exchange project.
 pub fn get_metadata(data_dir: &str) -> HashMap<String, BseRootMetadata> {
     get_metadata_f(data_dir).unwrap()
 }
@@ -117,49 +118,53 @@ fn get_basis_metadata(name: &str, data_dir: &str) -> Result<BseRootMetadata, Bse
 #[serde(default)]
 pub struct BseGetBasisArgs {
     #[builder(default)]
-    elements: Option<String>,
+    pub elements: Option<String>,
 
     #[builder(default)]
-    version: Option<String>,
+    pub version: Option<String>,
 
     #[builder(default = false)]
-    uncontract_general: bool,
+    pub uncontract_general: bool,
 
     #[builder(default = false)]
-    uncontract_spdf: bool,
+    pub uncontract_spdf: bool,
 
     #[builder(default = false)]
-    uncontract_segmented: bool,
+    pub uncontract_segmented: bool,
 
     #[builder(default = false)]
-    remove_free_primitives: bool,
+    pub remove_free_primitives: bool,
 
     #[builder(default = false)]
-    make_general: bool,
+    pub make_general: bool,
 
     #[builder(default = false)]
-    optimize_general: bool,
+    pub optimize_general: bool,
 
     #[builder(default = 0)]
-    augment_diffuse: i32,
+    pub augment_diffuse: i32,
 
     #[builder(default = 0)]
-    augment_steep: i32,
+    pub augment_steep: i32,
 
     #[builder(default = 0)]
-    get_aux: i32,
+    pub get_aux: i32,
 
     #[builder(default)]
-    data_dir: Option<String>,
+    pub data_dir: Option<String>,
 
     #[builder(default = true)]
-    header: bool,
+    pub header: bool,
 }
 
 impl Default for BseGetBasisArgs {
     fn default() -> Self {
         BseGetBasisArgsBuilder::default().build().unwrap()
     }
+}
+
+pub fn get_basis(name: &str, args: BseGetBasisArgs) -> BseBasis {
+    get_basis_f(name, args).unwrap()
 }
 
 pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseError> {
@@ -174,20 +179,50 @@ pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseErr
 
     let bs_data = get_basis_metadata(name, &data_dir)?;
 
-    let ver = match args.version {
-        Some(v) => v,
-        None => bs_data.latest_version,
-    };
+    // If version is not specified, use the latest
+    let ver = args.version.unwrap_or(bs_data.latest_version);
     if !bs_data.versions.contains_key(&ver) {
-        bse_raise!(
-            DataNotFound,
-            "Version {ver} not found in metadata. Available versions: {:?}",
-            bs_data.versions.keys().collect_vec()
-        )?;
+        bse_raise!(DataNotFound, "Version {ver} not found in metadata.")?;
     }
+
+    // Compose the entire basis set (all elements)
     let table_relpath = &bs_data.versions[&ver].file_relpath;
     let mut basis_dict = compose::compose_table_basis_f(table_relpath, &data_dir)?;
+
+    // Set the name (from the global metadata)
+    // Only the list of all names will be returned from compose_table_basis
     basis_dict.name = bs_data.display_name.clone();
+
+    // Handle optional arguments
+    if let Some(elements) = &args.elements {
+        // Convert to purely a list of strings that represent integers
+        let elements = misc::expand_elements_f(elements)?;
+
+        // Did the user pass an empty string or empty list?
+        // If so, include all elements
+        if !elements.is_empty() {
+            let bs_elements = &basis_dict.elements;
+
+            // Are elements part of this basis set?
+            let bs_elements_keys = bs_elements.keys().map(|s| s.parse::<i32>().unwrap()).collect::<HashSet<_>>();
+            let elements_set: HashSet<i32> = HashSet::from_iter(elements.clone());
+            if !elements_set.is_subset(&bs_elements_keys) {
+                bse_raise!(
+                    DataNotFound,
+                    "Elements {:?} not found in basis set `{name}`. Available elements: {:?}",
+                    elements,
+                    bs_elements_keys
+                )?;
+            }
+
+            // Set to only the elements we want
+            basis_dict.elements.retain(|el, _| elements_set.contains(&el.parse::<i32>().unwrap()));
+
+            // Since we only grab some of the elements, we need to update the
+            // function types used, too
+            basis_dict.function_types = compose::whole_basis_types(&basis_dict.elements);
+        }
+    }
 
     Ok(basis_dict)
 }

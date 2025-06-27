@@ -1,4 +1,5 @@
 tests/python_ref/*.json
+tests/*.json
 
 tmp*
 tmp
