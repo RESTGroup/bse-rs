@@ -111,6 +111,33 @@ fn get_basis_metadata(name: &str, data_dir: &str) -> Result<BseRootMetadata, Bse
 
 /* #endregion */
 
+/* #region other auxiliaries */
+
+/// Creates a header with information about a basis set.
+///
+/// Information includes description, revision, etc, but not references.
+pub fn header_string(basis: &BseBasis) -> String {
+    use textwrap::{Options, wrap};
+    let space_14 = " ".repeat(14);
+    let tw = Options::new(70).initial_indent("").subsequent_indent(&space_14);
+
+    let header_list = vec![
+        "-".repeat(70),
+        " BSE-rs (Basis Set Exchange in Rust)".to_string(),
+        format!(" Version {}", version()),
+        format!(" Acknowledges: {MAIN_URL}"),
+        "-".repeat(70).to_string(),
+        format!("   Basis set: {}", basis.name),
+        format!(" Description: {}", basis.description),
+        format!("        Role: {}", basis.role),
+        format!("     Version: {}  ({})", basis.version, basis.revision_description),
+        "-".repeat(70).to_string(),
+    ];
+    header_list.iter().flat_map(|s| wrap(s, &tw)).join("\n")
+}
+
+/* #endregion */
+
 /* #region get_basis */
 
 #[derive(Builder, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -303,5 +330,17 @@ mod tests {
         assert_eq!(basis.name, "STO-3G");
         let basis_json = serde_json::to_string_pretty(&basis).expect("Failed to serialize basis set to JSON");
         println!("Basis set JSON: {basis_json}");
+
+        let header = header_string(&basis);
+        println!("Header:\n{header}");
+    }
+
+    #[test]
+    fn test_get_header() {
+        let data_dir = get_bse_data_dir().expect("Data directory not found");
+        let args = BseGetBasisArgsBuilder::default().data_dir(Some(data_dir.clone())).build().unwrap();
+        let basis = get_basis_f("2ZaPa-NR-CV", args).expect("Failed to get basis set");
+        let header = header_string(&basis);
+        println!("Header:\n{header}");
     }
 }
