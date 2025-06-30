@@ -21,6 +21,8 @@ mod test {
     #[case("augment_steep"         , "cc-pVTZ"    , ["elements = '1, 6-O'"         , "augment_steep = 2"            ].join("\n"))]
     #[case("get_aux"               , "def2-SVP"   , ["elements = '1,6,15,25,59,86'", "get_aux = 1"                  ].join("\n"))]
     #[case("get_aux"               , "cc-pVTZ"    , ["elements = '1,6,15,25'"      , "get_aux = 1"                  ].join("\n"))]
+    #[case("get_abs"               , "def2-SVP"   , ["elements = '1,6,15,25,59,86'", "get_aux = 2"                  ].join("\n"))]
+    #[case("get_abs"               , "cc-pVTZ"    , ["elements = '1,6,15,25'"      , "get_aux = 2"                  ].join("\n"))]
     fn test_get_basis_json(#[case] scene: &str, #[case] basis: &str, #[case] args: String) {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let ref_file = format!("{manifest_dir}/tests/python_ref/get_basis_json/{basis}-{scene}.json");

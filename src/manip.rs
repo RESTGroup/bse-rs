@@ -597,6 +597,8 @@ pub fn geometric_augmentation(basis: &mut BseBasis, nadd: i32, steep: bool) {
 
 /// Create a Coulomb fitting basis set for the given orbital basis set.
 ///
+/// # See also
+///
 /// G. L. Stoychev, A. A. Auer, and F. Neese
 /// 'Automatic Generation of Auxiliary Basis Sets'
 /// J. Chem. Theory Comput. 13, 554 (2017)
@@ -612,11 +614,11 @@ pub fn autoaux_basis(basis: &BseBasis) -> BseBasis {
 
     let mut auxbasis_data = HashMap::new();
 
-    for (element_z, eldata) in &basis.elements {
+    for (element_Z, eldata) in &basis.elements {
         let elshells = match &eldata.electron_shells {
             Some(shells) => shells,
             None => {
-                println!("No electron shells for {element_z}");
+                println!("No electron shells for {element_Z}");
                 continue;
             },
         };
@@ -708,7 +710,7 @@ pub fn autoaux_basis(basis: &BseBasis) -> BseBasis {
         // atom. H and He have lval=0; Li, Be and everything after that
         // have lval=1; 3d transition metals have lval=2 and
         // lanthanoids have lval=3.
-        let z = element_z.parse::<i32>().unwrap();
+        let z = element_Z.parse::<i32>().unwrap();
         let lval = match z {
             1..=2 => 0,   // H and He
             3..=20 => 1,  // Li - Ca
@@ -722,7 +724,7 @@ pub fn autoaux_basis(basis: &BseBasis) -> BseBasis {
 
         // Limit maximal angular momentum
         let lmax_aux = (2 * lval).max((lmax + linc) as i32).min(2 * lmax) as usize;
-        println!("Generating auxiliary basis for element {element_z} with lmax_aux = {lmax_aux}");
+        println!("Generating auxiliary basis for element {element_Z} with lmax_aux = {lmax_aux}");
 
         // Values from Table I; factor 7.0 for P functions is missing in the paper
         let flaux = [20.0, 7.0, 4.0, 4.0, 3.5, 2.5, 2.0, 2.0];
@@ -741,7 +743,7 @@ pub fn autoaux_basis(basis: &BseBasis) -> BseBasis {
         }
 
         // Create aux basis
-        let aux_element_data = auxbasis_data.entry(element_z.to_string()).or_insert_with(BseBasisElement::default);
+        let aux_element_data = auxbasis_data.entry(element_Z.to_string()).or_insert_with(BseBasisElement::default);
 
         for laux in 0..=lmax_aux {
             // Generate the exponents
@@ -773,7 +775,7 @@ pub fn autoaux_basis(basis: &BseBasis) -> BseBasis {
                     exponents: vec![z],
                     coefficients: vec![vec!["1.0".to_string()]],
                 };
-                aux_element_data.electron_shells.get_or_insert_with(Vec::new).push(shell);
+                aux_element_data.electron_shells.get_or_insert_default().push(shell);
             }
         }
     }
@@ -797,6 +799,144 @@ pub fn autoaux_basis(basis: &BseBasis) -> BseBasis {
         role: "rifit".to_string(),
         auxiliaries: HashMap::new(),
         name: format!("{}_autoaux", basis.name),
+    }
+}
+
+/// Create a Coulomb fitting basis set for the given orbital basis set.
+///
+/// # See also
+///
+/// R. Yang, A. P. Rendell, and M. J. Frisch
+/// 'Automatically generated Coulomb fitting basis sets:
+/// Design and accuracy for systems containing H to Kr'
+/// J. Chem. Phys. 127, 074102 (2007)
+/// <http://doi.org/10.1063/1.2752807>
+pub fn autoabs_basis(basis: &BseBasis, lmaxinc: i32, fsam: f64) -> BseBasis {
+    // We want the basis set as generally contracted. Get a copy so
+    // that we don't change the input set
+    let mut basis_copy = basis.clone();
+    make_general(&mut basis_copy, false);
+
+    let mut auxbasis_data = HashMap::new();
+
+    for (element_Z, eldata) in &basis_copy.elements {
+        let elshells = match &eldata.electron_shells {
+            Some(shells) => shells,
+            None => {
+                println!("No electron shells for {element_Z}");
+                continue;
+            },
+        };
+
+        // Form the list of candidate functions
+        let mut candidates = Vec::new();
+        for sh in elshells {
+            let exponents = &sh.exponents;
+            let shell_am = &sh.angular_momentum;
+            assert_eq!(shell_am.len(), 1);
+            for x in exponents {
+                // We do the doubling here
+                let exponent = x.parse::<f64>().unwrap() * 2.0;
+                candidates.push((exponent, shell_am[0]));
+            }
+        }
+
+        // Form lval: highest occupied momentum of occupied shells for
+        // atom. H and He have lval=0; Li, Be and everything after that
+        // have lval=1; 3d transition metals have lval=2 and
+        // lanthanoids have lval=3.
+        let z = element_Z.parse::<i32>().unwrap();
+        let lval = if z > 54 {
+            3
+        } else if z > 18 {
+            2
+        } else if z > 2 {
+            1
+        } else {
+            0
+        };
+
+        // Maximal candidate am
+        let lmax = candidates.iter().map(|c| c.1).max().unwrap_or(0);
+
+        // Maximal allowed angular momentum
+        let lmax_aux = (2 * lval).max(lmax + lmaxinc).min(2 * lmax);
+
+        // Fitting functions
+        let mut fit_functions = Vec::new();
+
+        while !candidates.is_empty() {
+            // Sort candidates by exponent
+            candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+            // Move top candidate to trial function set
+            let mut trial_functions = vec![candidates.pop().unwrap()];
+            while let Some(candidate) = candidates.last() {
+                // trial fitting functions for which the ratio of the
+                // exponent reference value divided by the value of
+                // their exponent is smaller than fsam are moved from
+                // the candidate basis set to the trail function set
+                if trial_functions[0].0 / candidate.0 < fsam {
+                    trial_functions.push(candidates.pop().unwrap());
+                } else {
+                    break;
+                }
+            }
+
+            // Calculate geometric average of functions in trial set
+            let log_sum: f64 = trial_functions.iter().map(|tr| tr.0.ln()).sum();
+            let average_exponent = (log_sum / trial_functions.len() as f64).exp();
+
+            // The angular moment of this function is set to the
+            // maximum angular moment of any primitive in the current
+            // trial set and the previous ABSs.
+            let mut max_fit_am = fit_functions.iter().map(|f: &(f64, i32)| f.1).max().unwrap_or(0);
+            max_fit_am = max_fit_am.max(trial_functions.iter().map(|f| f.1).max().unwrap_or(0));
+            // Reset to lmax_aux
+            max_fit_am = max_fit_am.min(lmax_aux);
+
+            // Add functions
+            for fit_am in 0..=max_fit_am {
+                fit_functions.push((average_exponent, fit_am));
+            }
+        }
+
+        // Create aux basis
+        let aux_element_data = auxbasis_data.entry(element_Z.to_string()).or_insert_with(BseBasisElement::default);
+
+        // Create shells
+        for f in fit_functions {
+            let func_type = lut::function_type_from_am(&[f.1], "gto", "spherical");
+            let shell = BseElectronShell {
+                function_type: func_type,
+                region: String::new(),
+                angular_momentum: vec![f.1],
+                exponents: vec![misc::format_exponent(f.0)],
+                coefficients: vec![vec!["1.0".to_string()]],
+            };
+            aux_element_data.electron_shells.get_or_insert_default().push(shell);
+        }
+    }
+
+    // Finalize basis
+    let mut molssi_bse_schema = basis.molssi_bse_schema.clone();
+    molssi_bse_schema.schema_type = "component".to_string();
+    let function_types = compose::whole_basis_types(&auxbasis_data);
+
+    BseBasis {
+        molssi_bse_schema,
+        revision_description: basis.revision_description.clone(),
+        revision_date: basis.revision_date.clone(),
+        elements: auxbasis_data,
+        version: basis.version.clone(),
+        function_types,
+        names: basis.names.clone(),
+        tags: basis.tags.clone(),
+        family: basis.family.clone(),
+        description: String::new(),
+        role: "jfit".to_string(),
+        auxiliaries: HashMap::new(),
+        name: format!("{}_autoabs", basis.name),
     }
 }
 

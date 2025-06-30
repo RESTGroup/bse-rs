@@ -21,6 +21,8 @@ cfgs = [
     ("augment_steep"         , "cc-pVTZ"    , {"elements": "1, 6-O"         , "augment_steep": 2}),
     ("get_aux"               , "def2-SVP"   , {"elements": "1,6,15,25,59,86", "get_aux": 1}),
     ("get_aux"               , "cc-pVTZ"    , {"elements": "1,6,15,25"      , "get_aux": 1}),
+    ("get_abs"               , "def2-SVP"   , {"elements": "1,6,15,25,59,86", "get_aux": 2}),
+    ("get_abs"               , "cc-pVTZ"    , {"elements": "1,6,15,25"      , "get_aux": 2}),
 ]
 
 for (scene, basis, kwargs) in cfgs:

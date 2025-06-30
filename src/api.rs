@@ -282,7 +282,7 @@ pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseErr
     match args.get_aux {
         0 => (),
         1 => basis_dict = manip::autoaux_basis(&basis_dict),
-        2 => unimplemented!(),
+        2 => basis_dict = manip::autoabs_basis(&basis_dict, 1, 1.5),
         _ => bse_raise!(KeyError, "Invalid value for `get_aux`: {}", args.get_aux)?,
     }
 
