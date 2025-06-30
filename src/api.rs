@@ -270,6 +270,7 @@ pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseErr
 
     if args.augment_steep > 0 {
         manip::geometric_augmentation(&mut basis_dict, args.augment_steep, true);
+        sort::sort_basis(&mut basis_dict);
     }
 
     // Re-make general
