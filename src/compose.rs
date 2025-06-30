@@ -32,7 +32,7 @@ pub(crate) fn whole_basis_types(basis_elements: &HashMap<String, BseBasisElement
             }
         }
         if basis_element.ecp_potentials.is_some() {
-            function_types.insert("ecp_type".to_string());
+            function_types.insert("scalar_ecp".to_string());
         }
     }
     function_types.into_iter().sorted().collect()

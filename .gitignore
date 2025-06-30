@@ -1,4 +1,5 @@
-tests/python_ref/*.json
+tests/python_ref/**/*.json
+tests/python_ref/**/*.txt
 tests/*.json
 
 tmp*
@@ -11,6 +12,7 @@ tarpaulin-report.html
 .idea
 book
 *.npy
+.*.swp
 
 # bindgen
 blas_bindgen.h
