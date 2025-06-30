@@ -268,6 +268,15 @@ pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseErr
         manip::geometric_augmentation(&mut basis_dict, args.augment_diffuse, false);
     }
 
+    if args.augment_steep > 0 {
+        manip::geometric_augmentation(&mut basis_dict, args.augment_steep, true);
+    }
+
+    // Re-make general
+    if (args.augment_diffuse > 0 || args.augment_steep > 0) && args.make_general {
+        manip::make_general(&mut basis_dict, false);
+    }
+
     Ok(basis_dict)
 }
 
