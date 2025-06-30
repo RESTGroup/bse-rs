@@ -23,7 +23,7 @@ mod test {
     #[case("get_aux"               , "cc-pVTZ"    , ["elements = '1,6,15,25'"      , "get_aux = 1"                  ].join("\n"))]
     #[case("get_abs"               , "def2-SVP"   , ["elements = '1,6,15,25,59,86'", "get_aux = 2"                  ].join("\n"))]
     #[case("get_abs"               , "cc-pVTZ"    , ["elements = '1,6,15,25'"      , "get_aux = 2"                  ].join("\n"))]
-    fn test_get_basis_json(#[case] scene: &str, #[case] basis: &str, #[case] args: String) {
+    fn test_get_basis(#[case] scene: &str, #[case] basis: &str, #[case] args: String) {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let ref_file = format!("{manifest_dir}/tests/python_ref/get_basis_json/{basis}-{scene}.json");
         let write_file = format!("{manifest_dir}/tests/tmp.json");
@@ -38,5 +38,22 @@ mod test {
         let ref_str = read_to_string(ref_file).unwrap();
         let ref_json = serde_json::from_str::<serde_json::Value>(&ref_str).unwrap();
         assert_json_include!(actual: basis_json, expected: ref_json);
+    }
+
+    #[rstest]
+    #[case("nwchem", "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
+    #[case("nwchem", "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
+    fn test_get_formatted_basis(#[case] fmt: &str, #[case] basis: &str, #[case] args: String) {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let ref_file = format!("{manifest_dir}/tests/python_ref/get_basis_fmt/{basis}-{fmt}.txt");
+        let write_file = format!("{manifest_dir}/tests/tmp.txt");
+
+        let mut args = toml::from_str::<BseGetBasisArgs>(&args).unwrap();
+        args.header = false;
+        let basis_str = get_formatted_basis(basis, fmt, args);
+        write_from_string(&write_file, &basis_str).unwrap();
+
+        let ref_str = read_to_string(ref_file).unwrap();
+        assert_eq!(basis_str, ref_str);
     }
 }

@@ -53,6 +53,19 @@ pub fn element_sym_from_Z(z: i32) -> Option<&'static str> {
     ELEMENT_Z_MAP.get(&z).map(|(sym, _, _)| *sym)
 }
 
+/// Obtain the symbol of an element given its Z (charge) number, where the first
+/// character is captalized.
+#[inline]
+pub fn element_sym_from_Z_with_normalize(z: i32) -> Option<String> {
+    ELEMENT_Z_MAP.get(&z).map(|(sym, _, _)| {
+        let mut sym_normalized = sym.to_string();
+        if let Some(first_char) = sym_normalized.chars().next() {
+            sym_normalized.replace_range(0..1, &first_char.to_uppercase().to_string());
+        }
+        sym_normalized
+    })
+}
+
 /// Obtain the Z (charge) number of an element given its symbol.
 #[inline]
 pub fn element_Z_from_sym(sym: &str) -> Option<i32> {

@@ -23,6 +23,7 @@ libm = { version = "0.2" }
 assert-json-diff = { version = "2.0" }
 rstest = { version = "0.25" }
 toml = { version = "0.8" }
+similar = { version = "2.7" }
 
 [profile.dev]
 opt-level = 2

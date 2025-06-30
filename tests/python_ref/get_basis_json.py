@@ -2,6 +2,8 @@ import basis_set_exchange as bse
 import json
 import os
 
+assert bse.__version__ == "0.11"
+
 # ## get_basis_json
 
 out_root = "get_basis_json"
@@ -31,7 +33,5 @@ for (scene, basis, kwargs) in cfgs:
         if "data_source" in dct:
             del dct["data_source"]
         json.dump(dct, f, indent=2)
-
-
 
 

@@ -56,7 +56,7 @@ pub fn contraction_string(electron_shells: &[BseElectronShell], hij: bool, compa
 
     let mut primstr = String::new();
     let mut contstr = String::new();
-    for (am, (nprim, ncont)) in cont_map {
+    for (&am, (nprim, ncont)) in cont_map.iter().sorted() {
         if am != 0 && !compact {
             primstr.push(',');
             contstr.push(',');

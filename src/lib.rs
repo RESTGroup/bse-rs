@@ -11,4 +11,6 @@ pub mod lut_data;
 pub mod manip;
 pub mod misc;
 pub mod prelude;
+pub mod printing;
 pub mod sort;
+pub mod writers;

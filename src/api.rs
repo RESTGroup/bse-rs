@@ -144,10 +144,10 @@ pub fn header_string(basis: &BseBasis) -> String {
 #[builder(build_fn(error = "BseError"))]
 #[serde(default)]
 pub struct BseGetBasisArgs {
-    #[builder(default)]
+    #[builder(default, setter(into))]
     pub elements: Option<String>,
 
-    #[builder(default)]
+    #[builder(default, setter(into))]
     pub version: Option<String>,
 
     #[builder(default = false)]
@@ -314,6 +314,16 @@ pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseErr
     }
 
     Ok(basis_dict)
+}
+
+pub fn get_formatted_basis(name: &str, fmt: &str, args: BseGetBasisArgs) -> String {
+    get_formatted_basis_f(name, fmt, args).unwrap()
+}
+
+pub fn get_formatted_basis_f(name: &str, fmt: &str, args: BseGetBasisArgs) -> Result<String, BseError> {
+    let basis = get_basis_f(name, args.clone())?;
+    let header = if args.header { Some(header_string(&basis)) } else { None };
+    writers::write::write_formatted_basis_str_f(&basis, fmt, header.as_deref())
 }
 
 /* #endregion */
