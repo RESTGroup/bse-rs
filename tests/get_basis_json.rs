@@ -8,6 +8,7 @@ mod test {
     use super::*;
 
     #[rstest]
+    #[case("augment_diffuse"       , "cc-pVTZ"    , ["elements = '1, 6-O'"    , "augment_diffuse = 2"          ].join("\n"))]
     #[case("naive"                 , "cc-pVTZ"    , ["elements = '1, 6-O'"    ,                                ].join("\n"))]
     #[case("naive"                 , "def2-TZVPD" , ["elements = '1-3, 49-51'",                                ].join("\n"))]
     #[case("remove_free_primitives", "cc-pVTZ"    , ["elements = '1, 6-O'"    , "remove_free_primitives = true"].join("\n"))]

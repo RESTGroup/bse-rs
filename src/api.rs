@@ -3,7 +3,7 @@
 //! This module contains the interface for getting basis set data and references
 //! from the internal data store of basis sets.
 
-use crate::{error::BseError, prelude::*};
+use crate::prelude::*;
 
 /// Obtain the version of the basis set exchange library (as a string).
 pub fn version() -> &'static str {
@@ -262,6 +262,10 @@ pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseErr
 
     if needs_pruning {
         manip::prune_basis(&mut basis_dict);
+    }
+
+    if args.augment_diffuse > 0 {
+        manip::geometric_augmentation(&mut basis_dict, args.augment_diffuse, false);
     }
 
     Ok(basis_dict)

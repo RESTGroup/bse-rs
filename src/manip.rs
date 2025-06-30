@@ -356,6 +356,27 @@ fn is_single_column(col: &[String]) -> bool {
     col.iter().filter(|s| s.parse::<f64>().unwrap() != 0.0).count() == 1
 }
 
+fn free_primitives(coeffs: &[Vec<String>]) -> Vec<usize> {
+    // Find which columns represent free primitives
+    let single_columns = coeffs.iter().filter(|col| is_single_column(col)).collect_vec();
+    if single_columns.is_empty() {
+        return vec![];
+    }
+
+    // Now dig out the functions on those columns
+    let mut csum = vec![0.0; single_columns[0].len()];
+    for col in &single_columns {
+        for k in 0..col.len() {
+            csum[k] += col[k].parse::<f64>().unwrap();
+        }
+    }
+
+    // Since we're only looking at columns that represent free
+    // primitives, the rows that have non-zero sums correspond to free
+    // exponents.
+    csum.iter().enumerate().filter(|(_, val)| **val != 0.0).map(|(idx, _)| idx).collect_vec()
+}
+
 /// Removes any free primitives from a basis set as a way to generate a minimal
 /// basis.
 ///
@@ -442,6 +463,144 @@ pub fn optimize_general(basis: &mut BseBasis) {
                         col[row_idx] = "0.0000000E+00".to_string();
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Extends a basis set by adding extrapolated diffuse or steep functions.
+///
+/// For augmented Dunning sets (aug), the diffuse augmentation
+/// corresponds to multiple augmentation (aug -> daug, taug, ...).
+///
+/// In order for the augmentation to make sense, the two outermost
+/// primitives have to be free i.e. uncontracted.
+///
+/// Parameters
+/// ----------
+/// basis: &mut BseBasis
+///     Basis set dictionary to work with
+/// nadd: i32
+///     Number of functions to add (must be >=1). For diffuse augmentation on an
+///     augmented set: 1 -> daug, 2 -> taug, etc use_copy: bool
+///     If True, the input basis set is not modified.
+/// steep: bool
+///     If True, the augmentation is done for steep functions instead of diffuse
+///     functions.
+pub fn geometric_augmentation(basis: &mut BseBasis, nadd: i32, steep: bool) {
+    if nadd < 1 {
+        panic!("Adding {nadd} functions makes no sense for geometric_augmentation");
+    }
+
+    // We need to combine shells by AM
+    // make_general is assumed to be implemented elsewhere
+    let mut basis_copy = basis.clone();
+    make_general(&mut basis_copy, true);
+
+    // From Woon & Dunning, Jr
+    // J. Chem. Phys. v100, No. 4, p. 2975 (1994)
+    // DOI: 10.1063/1.466439
+    //
+    // The exponent for d-aug-cc-pVXZ: alpha*beta
+    //                  t-aug-cc-pVXZ: alpha*(beta**2)
+    // and so on.
+    //
+    // alpha = smallest exponent in aug-cc-pVXZ
+    // beta = ratio of two most diffuse functions (beta < 1)
+    //
+    // This applies to all angular momentum (which have been combined into
+    // shells already)
+
+    for (el_z, eldata) in basis_copy.elements.iter() {
+        let Some(electron_shells) = &eldata.electron_shells else {
+            continue;
+        };
+
+        let mut new_shells = Vec::new();
+
+        for shell in electron_shells {
+            // Find the two smallest exponents. The smallest is alpha
+            // beta is the ratio alpha/(next smallest)
+            // Keep track of the indices as well
+            let mut exponents: Vec<(f64, usize)> =
+                shell.exponents.iter().enumerate().map(|(idx, x)| (x.parse::<f64>().unwrap(), idx)).collect();
+
+            exponents.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+            if exponents.len() < 2 {
+                // Need at least two exponents to perform augmentation
+                continue;
+            }
+
+            let (ref_idx, next_idx) = if steep {
+                // If we're augmenting by steep functions, the
+                // references are the steepest and second-steepest
+                // function.
+                (exponents.len() - 1, exponents.len() - 2)
+            } else {
+                // If we're augmenting by diffuse functions, the
+                // references are the diffusemost and second-most
+                // diffuse function.
+                (0, 1)
+            };
+
+            let (ref_exp, ref_idx) = exponents[ref_idx];
+            let (next_exp, next_idx) = exponents[next_idx];
+            // Even-tempered spacing parameter
+            let beta = ref_exp / next_exp;
+
+            if (ref_exp - next_exp).abs() < f64::EPSILON {
+                panic!(
+                    "The two outermost exponents are the same. Duplicate exponents are not a good thing here. Exponent: {ref_exp}"
+                );
+            }
+
+            // Test that the primitives for the references are free.
+            let free_prims = free_primitives(&shell.coefficients);
+            if !free_prims.contains(&ref_idx) || !free_prims.contains(&next_idx) {
+                // The shell does not have enough free primitives so
+                // skip the extrapolation.
+                continue;
+            }
+
+            // Form new exponents
+            let mut new_exponents = Vec::new();
+            for i in 1..=nadd {
+                new_exponents.push(ref_exp * beta.powi(i));
+            }
+
+            // the scientific notation of rust is not exactly the same as Python's
+            #[inline]
+            fn format_exponent(exp: f64) -> String {
+                let token = format!("{exp:.6e}");
+                let (s, e) = token.split_once('e').unwrap();
+                let e = e.parse::<i32>().unwrap();
+                let sgn = if e < 0 { '-' } else { '+' };
+                let e = e.abs();
+                format!("{s}e{sgn}{e:0>2}")
+            }
+
+            let new_exponents: Vec<String> = new_exponents.iter().map(|&x| format_exponent(x)).collect();
+
+            // add the new exponents as new uncontracted shells
+            for ex in new_exponents {
+                new_shells.push(BseElectronShell {
+                    function_type: shell.function_type.clone(),
+                    region: shell.region.clone(),
+                    angular_momentum: shell.angular_momentum.clone(),
+                    exponents: vec![ex],
+                    coefficients: vec![vec!["1.00000000".to_string()]],
+                });
+            }
+        }
+
+        // add the shells to the original basis set
+        if let Some(element) = basis.elements.get_mut(el_z) {
+            if element.electron_shells.is_none() {
+                element.electron_shells = Some(Vec::new());
+            }
+            if let Some(shells) = &mut element.electron_shells {
+                shells.extend(new_shells);
             }
         }
     }

@@ -16,11 +16,24 @@ cfgs = [
     ("optimize_general"      , "aug-cc-pVTZ", {"elements": "1, 6-O"    , "optimize_general": True}),
     ("uncontract_segmented"  , "aug-cc-pVTZ", {"elements": "1, 6-O"    , "uncontract_segmented": True}),
     ("uncontract_general"    , "aug-cc-pVTZ", {"elements": "1, 6-O"    , "uncontract_general": True}),
-    ("uncontract_spdf"       , "6-31G",       {"elements": "1, 6-O"    , "uncontract_spdf": True}),
+    ("uncontract_spdf"       , "6-31G"      , {"elements": "1, 6-O"    , "uncontract_spdf": True}),
+    ("augment_diffuse"       , "cc-pVTZ"    , {"elements": "1, 6-O"    , "augment_diffuse": 2}),
 ]
 
 for (scene, basis, kwargs) in cfgs:
     with open(f"{out_root}/{basis}-{scene}.json", "w") as f:
         json.dump(bse.get_basis(basis, **kwargs), f, indent=2)
+
+
+
+bse.get_basis(basis, **kwargs)
+
+
+
+# +
+# json.dump?
+# -
+
+
 
 
