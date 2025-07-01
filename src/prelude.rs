@@ -24,3 +24,4 @@ pub(crate) use std::sync::Mutex;
 
 pub(crate) use crate::error::BseError;
 pub(crate) use crate::*;
+pub(crate) use misc::{COMPACT, HIJ, HIK, INCOMPACT, SCIFMT_D, SCIFMT_E};

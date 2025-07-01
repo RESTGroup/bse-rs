@@ -41,8 +41,12 @@ mod test {
     }
 
     #[rstest]
-    #[case("nwchem", "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
-    #[case("nwchem", "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
+    #[case("nwchem"    , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
+    #[case("nwchem"    , "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
+    #[case("gaussian94", "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
+    #[case("gaussian94", "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
+    #[case("psi4"      , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
+    #[case("psi4"      , "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
     fn test_get_formatted_basis(#[case] fmt: &str, #[case] basis: &str, #[case] args: String) {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let ref_file = format!("{manifest_dir}/tests/python_ref/get_basis_fmt/{basis}-{fmt}.txt");
@@ -54,6 +58,18 @@ mod test {
         write_from_string(&write_file, &basis_str).unwrap();
 
         let ref_str = read_to_string(ref_file).unwrap();
+
+        use similar::{ChangeTag, TextDiff};
+        let diff = TextDiff::from_lines(&basis_str, &ref_str);
+        for change in diff.iter_all_changes() {
+            let sign = match change.tag() {
+                ChangeTag::Delete => "-",
+                ChangeTag::Insert => "+",
+                ChangeTag::Equal => " ",
+            };
+            print!("{sign}{change}");
+        }
+
         assert_eq!(basis_str, ref_str);
     }
 }

@@ -12,6 +12,10 @@ os.makedirs(out_root, exist_ok=True)
 cfgs = [
     ("nwchem"    , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "nwchem"}),
     ("nwchem"    , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "nwchem"}),
+    ("gaussian94", "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "gaussian94"}),
+    ("gaussian94", "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "gaussian94"}),
+    ("psi4"      , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "psi4"}),
+    ("psi4"      , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "psi4"}),
 ]
 
 for (scene, basis, kwargs) in cfgs:

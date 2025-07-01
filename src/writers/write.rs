@@ -21,6 +21,34 @@ fn writer_map(fmt: &str) -> Option<Writer> {
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
             function: writers::nwchem::write_nwchem,
         }),
+        "gaussian94" | "g94" => Some(Writer {
+            display: "Gaussian",
+            extension: ".gbs",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::g94::write_g94,
+        }),
+        "gaussian94lib" | "g94lib" => Some(Writer {
+            display: "Gaussian, system library",
+            extension: ".gbs",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::g94::write_g94lib,
+        }),
+        "psi4" => Some(Writer {
+            display: "Psi4",
+            extension: ".gbs",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::g94::write_psi4,
+        }),
+        "xtron" => Some(Writer {
+            display: "xTron",
+            extension: ".gbs",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::g94::write_xtron,
+        }),
         _ => None,
     }
 }

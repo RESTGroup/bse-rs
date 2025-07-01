@@ -97,7 +97,10 @@ pub fn element_Z_from_str(s: &str) -> Option<i32> {
 /// will be spdfghikl (skipping j).
 #[inline]
 pub fn amint_to_char(am: &[i32], hij: bool) -> String {
-    let amchar_map = if hij { AMCHAR_MAP_HIJ } else { AMCHAR_MAP_HIK };
+    let amchar_map = match hij {
+        HIJ => AMCHAR_MAP_HIJ,
+        HIK => AMCHAR_MAP_HIK,
+    };
     am.iter().map(|&a| amchar_map.chars().nth(a as usize).unwrap()).collect()
 }
 
@@ -122,7 +125,10 @@ pub fn amint_to_char_use_L(am: &[i32], hij: bool) -> String {
 /// will be spdfghikl (skipping j).
 #[inline]
 pub fn amchar_to_int(amchar: &str, hij: bool) -> Option<Vec<i32>> {
-    let amchar_map = if hij { AMCHAR_MAP_HIJ } else { AMCHAR_MAP_HIK };
+    let amchar_map = match hij {
+        HIJ => AMCHAR_MAP_HIJ,
+        HIK => AMCHAR_MAP_HIK,
+    };
     amchar.chars().map(|c| amchar_map.find(c).map(|i| i as i32)).collect()
 }
 

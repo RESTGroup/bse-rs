@@ -2,10 +2,6 @@
 
 use crate::prelude::*;
 
-const HIK: bool = false;
-const INCOMPACT: bool = false;
-const SCIFMT_E: bool = false;
-
 /// Converts a basis set to NWChem format.
 pub fn write_nwchem(basis: &BseBasis) -> String {
     // Uncontract all but SP

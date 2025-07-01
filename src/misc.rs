@@ -2,6 +2,19 @@
 
 use crate::prelude::*;
 
+/* #region flags */
+
+pub const HIK: bool = false;
+pub const HIJ: bool = true;
+
+pub const INCOMPACT: bool = false;
+pub const COMPACT: bool = true;
+
+pub const SCIFMT_E: bool = false;
+pub const SCIFMT_D: bool = true;
+
+/* #endregion */
+
 // the scientific notation of rust is not exactly the same as Python's
 #[inline]
 pub(crate) fn format_exponent(exp: f64) -> String {
@@ -66,7 +79,10 @@ pub fn contraction_string(electron_shells: &[BseElectronShell], hij: bool, compa
         contstr.push_str(&format!("{ncont}{amint_char}"));
     }
 
-    if compact { format!("{primstr}.{contstr}") } else { format!("({primstr}) -> [{contstr}]") }
+    match compact {
+        COMPACT => format!("{primstr}.{contstr}"),
+        INCOMPACT => format!("({primstr}) -> [{contstr}]"),
+    }
 }
 
 /// Create a string (with ranges) given a list of element numbers.
