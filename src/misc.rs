@@ -41,6 +41,11 @@ where
     (0..ncol).map(|i| (0..nrow).map(|j| mat[j][i].clone()).collect()).collect()
 }
 
+/// Determine the maximum angular momentum of a list of shells or potentials.
+pub fn max_am(electron_shells: &[BseElectronShell]) -> i32 {
+    electron_shells.iter().flat_map(|sh| &sh.angular_momentum).max().cloned().unwrap_or(0)
+}
+
 /// Forms a string specifying the contractions for an element.
 ///
 /// i.e., (16s,10p) -> [4s,3p]

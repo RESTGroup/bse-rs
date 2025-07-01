@@ -49,6 +49,13 @@ fn writer_map(fmt: &str) -> Option<Writer> {
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
             function: writers::g94::write_xtron,
         }),
+        "molcas" => Some(Writer {
+            display: "Molcas",
+            extension: ".molcas",
+            comment: "*",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::molcas::write_molcas,
+        }),
         _ => None,
     }
 }

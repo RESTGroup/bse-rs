@@ -7,6 +7,7 @@ pub fn write_nwchem(basis: &BseBasis) -> String {
     // Uncontract all but SP
     let mut basis = basis.clone();
     manip::uncontract_spdf(&mut basis, 1);
+    manip::prune_basis(&mut basis);
     sort::sort_basis(&mut basis);
 
     let mut s: Vec<String> = vec![];
