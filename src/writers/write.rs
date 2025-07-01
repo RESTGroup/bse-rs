@@ -63,6 +63,13 @@ fn writer_map(fmt: &str) -> Option<Writer> {
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
             function: writers::qchem::write_qchem,
         }),
+        "gamess_us" => Some(Writer {
+            display: "GAMESS US",
+            extension: ".bas",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::gamess_us::write_gamess_us,
+        }),
         _ => None,
     }
 }
