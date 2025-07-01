@@ -93,4 +93,24 @@ mod test {
 
         assert_eq!(basis_str, ref_str);
     }
+
+    #[rstest]
+    #[case("qcschema"      , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
+    #[case("qcschema"      , "def2-ECP"  , ["elements = '49-51'"     ].join("\n"))]
+    #[case("qcschema"      , "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
+    fn test_get_formatted_json(#[case] fmt: &str, #[case] basis: &str, #[case] args: String) {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let ref_file = format!("{manifest_dir}/tests/python_ref/get_basis_fmt/{basis}-{fmt}.txt");
+        let write_file = format!("{manifest_dir}/tests/tmp.txt");
+
+        let mut args = toml::from_str::<BseGetBasisArgs>(&args).unwrap();
+        args.header = false;
+        let basis_str = get_formatted_basis(basis, fmt, args);
+        write_from_string(&write_file, &basis_str).unwrap();
+
+        let ref_str = read_to_string(ref_file).unwrap();
+        let basis_json = serde_json::from_str::<serde_json::Value>(&basis_str).unwrap();
+        let ref_json = serde_json::from_str::<serde_json::Value>(&ref_str).unwrap();
+        assert_json_include!(actual: basis_json, expected: ref_json);
+    }
 }

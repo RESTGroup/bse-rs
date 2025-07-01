@@ -7,5 +7,6 @@ pub mod molcas;
 pub mod nwchem;
 pub mod orca;
 pub mod qchem;
+pub mod qcschema;
 
 pub mod write;

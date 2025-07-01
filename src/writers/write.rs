@@ -70,6 +70,13 @@ fn writer_map(fmt: &str) -> Option<Writer> {
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
             function: writers::dalton::write_dalton,
         }),
+        "qcschema" => Some(Writer {
+            display: "QCSchema",
+            extension: ".json",
+            comment: "",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::qcschema::write_qcschema,
+        }),
         "gamess_us" => Some(Writer {
             display: "GAMESS US",
             extension: ".bas",
