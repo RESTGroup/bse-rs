@@ -7,6 +7,7 @@ pub mod gamess_us;
 pub mod molcas;
 pub mod nwchem;
 pub mod orca;
+pub mod pqs;
 pub mod qchem;
 pub mod qcschema;
 

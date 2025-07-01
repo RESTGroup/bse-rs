@@ -41,7 +41,7 @@ fn write_gamess_us_electron_basis(basis: &BseBasis, electron_elements: &[&String
 }
 
 /// Writes the ECP basis part for GAMESS-US format
-fn write_gamess_us_ecp_basis(basis: &BseBasis, ecp_elements: &[&String], ecp_block: bool) -> String {
+pub(crate) fn write_gamess_us_ecp_basis(basis: &BseBasis, ecp_elements: &[&String], ecp_block: bool) -> String {
     let mut s = vec![];
 
     if ecp_block {

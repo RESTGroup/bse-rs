@@ -84,6 +84,13 @@ fn writer_map(fmt: &str) -> Option<Writer> {
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
             function: writers::cp2k::write_cp2k,
         }),
+        "pqs" => Some(Writer {
+            display: "PQS",
+            extension: ".pqs",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::pqs::write_pqs,
+        }),
         "gamess_us" => Some(Writer {
             display: "GAMESS US",
             extension: ".bas",
