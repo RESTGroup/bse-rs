@@ -40,6 +40,17 @@ pub fn element_name_from_Z(z: i32) -> Option<&'static str> {
     ELEMENT_Z_MAP.get(&z).map(|(_, _, name)| *name)
 }
 
+#[inline]
+pub fn element_name_from_Z_with_normalize(z: i32) -> Option<String> {
+    ELEMENT_Z_MAP.get(&z).map(|(_, _, name)| {
+        let mut name_normalized = name.to_string();
+        if let Some(first_char) = name_normalized.chars().next() {
+            name_normalized.replace_range(0..1, &first_char.to_uppercase().to_string());
+        }
+        name_normalized
+    })
+}
+
 /// Obtain the symbol of an element given its symbol.
 #[inline]
 pub fn element_Z_from_name(name: &str) -> Option<i32> {

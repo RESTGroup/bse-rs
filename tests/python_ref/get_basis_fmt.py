@@ -43,6 +43,9 @@ cfgs = [
     ("qcschema"      , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "qcschema"}),
     ("qcschema"      , "def2-ECP"   , {"elements": "49-51"     , "fmt": "qcschema"}),
     ("qcschema"      , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "qcschema"}),
+    ("cp2k"          , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "cp2k"}),
+    ("cp2k"          , "def2-ECP"   , {"elements": "49-51"     , "fmt": "cp2k"}),
+    ("cp2k"          , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "cp2k"}),
 ]
 
 # # %%time
