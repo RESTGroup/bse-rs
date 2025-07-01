@@ -56,6 +56,13 @@ fn writer_map(fmt: &str) -> Option<Writer> {
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
             function: writers::molcas::write_molcas,
         }),
+        "qchem" => Some(Writer {
+            display: "Q-Chem",
+            extension: ".qchem",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::qchem::write_qchem,
+        }),
         _ => None,
     }
 }

@@ -3,5 +3,6 @@
 pub mod g94;
 pub mod molcas;
 pub mod nwchem;
+pub mod qchem;
 
 pub mod write;
