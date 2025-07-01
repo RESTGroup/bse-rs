@@ -70,6 +70,13 @@ fn writer_map(fmt: &str) -> Option<Writer> {
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
             function: writers::gamess_us::write_gamess_us,
         }),
+        "orca" => Some(Writer {
+            display: "ORCA",
+            extension: ".orca",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::orca::write_orca,
+        }),
         _ => None,
     }
 }

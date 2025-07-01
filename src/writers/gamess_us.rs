@@ -96,7 +96,7 @@ fn write_gamess_us_ecp_basis(basis: &BseBasis, ecp_elements: &[&String], ecp_blo
 }
 
 /// Common conversion function for GAMESS-US format
-fn write_gamess_us_common(basis: &BseBasis, ecp_func: impl Fn(&BseBasis, &[&String]) -> String) -> String {
+pub(crate) fn write_gamess_us_common(basis: &BseBasis, ecp_func: impl Fn(&BseBasis, &[&String]) -> String) -> String {
     let mut basis = basis.clone();
     manip::uncontract_general(&mut basis);
     manip::uncontract_spdf(&mut basis, 1);

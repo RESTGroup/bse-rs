@@ -34,6 +34,9 @@ cfgs = [
     ("gamess_us"     , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "gamess_us"}),
     ("gamess_us"     , "def2-ECP"   , {"elements": "49-51"     , "fmt": "gamess_us"}),
     ("gamess_us"     , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "gamess_us"}),
+    ("orca"          , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "orca"}),
+    ("orca"          , "def2-ECP"   , {"elements": "49-51"     , "fmt": "orca"}),
+    ("orca"          , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "orca"}),
 ]
 
 # # %%time
