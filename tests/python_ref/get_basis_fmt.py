@@ -61,6 +61,9 @@ cfgs = [
     ("molpro"        , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "molpro"}),
     ("molpro"        , "def2-ECP"   , {"elements": "49-51"     , "fmt": "molpro"}),
     ("molpro"        , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "molpro"}),
+    ("cfour"         , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "cfour"}),
+    ("cfour"         , "def2-ECP"   , {"elements": "49-51"     , "fmt": "cfour"}),
+    ("cfour"         , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "cfour"}),
 ]
 
 # # %%time

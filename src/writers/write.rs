@@ -126,6 +126,20 @@ fn writer_map(fmt: &str) -> Option<Writer> {
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
             function: writers::molpro::write_molpro,
         }),
+        "cfour" => Some(Writer {
+            display: "CFOUR",
+            extension: ".c4bas",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::genbas::write_cfour,
+        }),
+        "acesii" => Some(Writer {
+            display: "ACES II",
+            extension: ".acesii",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::genbas::write_aces2,
+        }),
         "xtron" => Some(Writer {
             display: "xTron",
             extension: ".gbs",

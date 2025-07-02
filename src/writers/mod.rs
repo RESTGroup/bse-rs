@@ -6,6 +6,7 @@ pub mod demon2k;
 pub mod g94;
 pub mod gamess_uk;
 pub mod gamess_us;
+pub mod genbas;
 pub mod molcas;
 pub mod molpro;
 pub mod nwchem;
