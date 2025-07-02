@@ -64,6 +64,19 @@ cfgs = [
     ("cfour"         , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "cfour"}),
     ("cfour"         , "def2-ECP"   , {"elements": "49-51"     , "fmt": "cfour"}),
     ("cfour"         , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "cfour"}),
+    ("acesii"        , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "acesii"}),
+    ("acesii"        , "def2-ECP"   , {"elements": "49-51"     , "fmt": "acesii"}),
+    ("acesii"        , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "acesii"}),
+    ("bdf"           , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "bdf"}),
+    ("bdf"           , "def2-ECP"   , {"elements": "49-51"     , "fmt": "bdf"}),
+    ("bdf"           , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "bdf"}),
+    ("fhiaims"       , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "fhiaims"}),
+    ("jaguar"        , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "jaguar"}),
+    ("jaguar"        , "def2-ECP"   , {"elements": "49-51"     , "fmt": "jaguar"}),
+    ("jaguar"        , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "jaguar"}),
+    ("crystal"       , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "crystal"}),
+    ("crystal"       , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "crystal"}),
+    ("veloxchem"     , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "veloxchem"}),
 ]
 
 # # %%time

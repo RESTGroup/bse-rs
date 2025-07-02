@@ -147,6 +147,41 @@ fn writer_map(fmt: &str) -> Option<Writer> {
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
             function: writers::g94::write_xtron,
         }),
+        "bdf" => Some(Writer {
+            display: "BDF",
+            extension: ".bdf",
+            comment: "*",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::bdf::write_bdf,
+        }),
+        "fhiaims" => Some(Writer {
+            display: "FHI-aims",
+            extension: ".fhiaims",
+            comment: "#",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical"],
+            function: writers::fhiaims::write_fhiaims,
+        }),
+        "jaguar" => Some(Writer {
+            display: "Jaguar",
+            extension: ".jaguar",
+            comment: "#",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::jaguar::write_jaguar,
+        }),
+        "crystal" => Some(Writer {
+            display: "CRYSTAL",
+            extension: ".crystal",
+            comment: "!",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+            function: writers::crystal::write_crystal,
+        }),
+        "veloxchem" => Some(Writer {
+            display: "VeloxChem",
+            extension: ".vlx",
+            comment: "!",
+            valid: vec!["gto", "gto_spherical"],
+            function: writers::veloxchem::write_veloxchem,
+        }),
         _ => None,
     }
 }

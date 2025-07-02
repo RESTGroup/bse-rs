@@ -92,6 +92,15 @@ mod test {
     #[case("acesii"        , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
     #[case("acesii"        , "def2-ECP"  , ["elements = '49-51'"     ].join("\n"))]
     #[case("acesii"        , "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
+    #[case("bdf"           , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
+    #[case("bdf"           , "def2-ECP"  , ["elements = '49-51'"     ].join("\n"))]
+    #[case("bdf"           , "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
+    #[case("jaguar"        , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
+    #[case("jaguar"        , "def2-ECP"  , ["elements = '49-51'"     ].join("\n"))]
+    #[case("jaguar"        , "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
+    #[case("crystal"       , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
+    #[case("crystal"       , "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
+    #[case("veloxchem"     , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
     fn test_get_formatted_basis(#[case] fmt: &str, #[case] basis: &str, #[case] args: String) {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let ref_file = format!("{manifest_dir}/tests/python_ref/get_basis_fmt/{basis}-{fmt}.txt");
@@ -114,6 +123,32 @@ mod test {
             };
             print!("{sign}{change}");
         }
+
+        assert_eq!(basis_str, ref_str);
+    }
+
+    #[rstest]
+    #[case("fhiaims"       , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
+    #[should_panic(expected = "does not support all function types")]
+    #[case("fhiaims"       , "def2-ECP"  , ["elements = '49-51'"     ].join("\n"))]
+    #[should_panic(expected = "does not support all function types")]
+    #[case("fhiaims"       , "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
+    fn test_get_formatted_basis_fhiaims(#[case] fmt: &str, #[case] basis: &str, #[case] args: String) {
+        // fhi-aims format suffers from pythons's indent
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let ref_file = format!("{manifest_dir}/tests/python_ref/get_basis_fmt/{basis}-{fmt}.txt");
+        let write_file = format!("{manifest_dir}/tests/tmp.txt");
+
+        let mut args = toml::from_str::<BseGetBasisArgs>(&args).unwrap();
+        args.header = false;
+        let basis_str = get_formatted_basis(basis, fmt, args);
+        write_from_string(&write_file, &basis_str).unwrap();
+
+        let ref_str = read_to_string(ref_file).unwrap();
+
+        use itertools::Itertools;
+        let basis_str = basis_str.split('\n').map(|line| line.trim()).collect_vec().join("\n");
+        let ref_str = ref_str.split('\n').map(|line| line.trim()).collect_vec().join("\n");
 
         assert_eq!(basis_str, ref_str);
     }
