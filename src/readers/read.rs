@@ -15,6 +15,9 @@ fn reader_map(fmt: &str) -> Option<Reader> {
         "gaussian94" | "g94" => {
             Some(Reader { display: "Gaussian94", extension: ".gbs", function: readers::g94::read_g94 })
         },
+        "turbomole" => {
+            Some(Reader { display: "Turbomole", extension: ".tm", function: readers::turbomole::read_turbomole })
+        },
         _ => None,
     }
 }

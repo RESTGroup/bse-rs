@@ -5,3 +5,4 @@ pub mod read;
 
 pub mod g94;
 pub mod nwchem;
+pub mod turbomole;
