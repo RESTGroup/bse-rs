@@ -29,6 +29,6 @@ pub fn read_formatted_basis_str(basis_str: &str, fmt: &str) -> BseBasisMinimal {
 
 pub fn read_formatted_basis_str_f(basis_str: &str, fmt: &str) -> Result<BseBasisMinimal, BseError> {
     let fmt = fmt.to_lowercase();
-    let reader = reader_map(&fmt).map_or(bse_raise!(ValueError, "Unknown format: {fmt}"), Ok)?;
+    let reader = reader_map(&fmt).map_or(bse_raise!(ValueError, "Unknown reader format: {fmt}"), Ok)?;
     (reader.function)(basis_str)
 }

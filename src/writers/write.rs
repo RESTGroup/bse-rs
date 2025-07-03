@@ -195,7 +195,7 @@ pub fn write_formatted_basis_str(basis_dict: &BseBasis, fmt: &str, header: Optio
 pub fn write_formatted_basis_str_f(basis_dict: &BseBasis, fmt: &str, header: Option<&str>) -> Result<String, BseError> {
     // make writers case insensitive
     let fmt = fmt.to_lowercase();
-    let writer = writer_map(&fmt).map_or(bse_raise!(ValueError, "Unknown format: {fmt}"), Ok)?;
+    let writer = writer_map(&fmt).map_or(bse_raise!(ValueError, "Unknown writer format: {fmt}"), Ok)?;
 
     // Determine if the writer supports all the types in the basis_dict
     if !writer.valid.is_empty() {
