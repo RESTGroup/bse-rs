@@ -140,6 +140,22 @@ pub fn header_string(basis: &BseBasis) -> String {
 
 /* #region get_basis */
 
+/// Data source for basis set information.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BseDataSource {
+    /// Use local data directory (requires `BSE_DATA_DIR` or `data_dir`
+    /// parameter).
+    Local,
+    /// Use remote REST API (requires `remote` feature).
+    #[cfg(feature = "remote")]
+    Remote,
+    /// Try local first, fallback to remote if available.
+    /// Without `remote` feature, this is equivalent to `Local`.
+    #[default]
+    Auto,
+}
+
 #[derive(Builder, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[builder(build_fn(error = "BseError"))]
 #[serde(default)]
@@ -182,6 +198,16 @@ pub struct BseGetBasisArgs {
 
     #[builder(default = true)]
     pub header: bool,
+
+    /// Data source for basis set (local, remote, or auto).
+    #[builder(default)]
+    pub source: BseDataSource,
+
+    /// Custom API URL for remote fetching (optional, requires `remote`
+    /// feature).
+    #[cfg(feature = "remote")]
+    #[builder(default, setter(into))]
+    pub api_url: Option<String>,
 }
 
 impl Default for BseGetBasisArgs {
@@ -253,7 +279,8 @@ pub fn get_basis(name: &str, args: BseGetBasisArgs) -> BseBasis {
     get_basis_f(name, args).unwrap()
 }
 
-pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseError> {
+/// Internal function for local basis set fetching.
+fn get_basis_local_f(name: &str, args: &BseGetBasisArgs) -> Result<BseBasis, BseError> {
     let data_dir = args.data_dir.clone().or(get_bse_data_dir());
     if data_dir.is_none() {
         return bse_raise!(
@@ -266,7 +293,7 @@ pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseErr
     let bs_data = get_basis_metadata(name, &data_dir)?;
 
     // If version is not specified, use the latest
-    let ver = args.version.unwrap_or(bs_data.latest_version);
+    let ver = args.version.clone().unwrap_or(bs_data.latest_version);
     if !bs_data.versions.contains_key(&ver) {
         bse_raise!(DataNotFound, "Version {ver} not found in metadata.")?;
     }
@@ -311,68 +338,102 @@ pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseErr
         }
     }
 
-    // Note that from now on, the pipleline is going to modify basis_dict.
+    // Note that from now on, the pipeline is going to modify basis_dict.
     // That is ok, since we are returned a unique instance from compose_table_basis.
 
+    apply_basis_manipulations(&mut basis_dict, args)?;
+
+    Ok(basis_dict)
+}
+
+/// Apply manipulations to a basis set based on args.
+/// This is used after fetching from either local or remote source.
+fn apply_basis_manipulations(basis_dict: &mut BseBasis, args: &BseGetBasisArgs) -> Result<(), BseError> {
     let mut needs_pruning = false;
 
     if args.remove_free_primitives {
-        manip::remove_free_primitives(&mut basis_dict);
+        manip::remove_free_primitives(basis_dict);
         needs_pruning = true;
     }
 
     if args.optimize_general {
-        manip::optimize_general(&mut basis_dict);
+        manip::optimize_general(basis_dict);
         needs_pruning = true;
     }
 
     // uncontract_segmented implies uncontract_general
     if args.uncontract_segmented {
-        manip::uncontract_segmented(&mut basis_dict);
+        manip::uncontract_segmented(basis_dict);
         needs_pruning = true;
     }
 
     if args.uncontract_general {
-        manip::uncontract_general(&mut basis_dict);
+        manip::uncontract_general(basis_dict);
         needs_pruning = true;
     }
 
     if args.uncontract_spdf {
-        manip::uncontract_spdf(&mut basis_dict, 0);
+        manip::uncontract_spdf(basis_dict, 0);
         needs_pruning = true;
     }
 
     if args.make_general {
-        manip::make_general(&mut basis_dict, false);
+        manip::make_general(basis_dict, false);
         needs_pruning = true;
     }
 
     if needs_pruning {
-        manip::prune_basis(&mut basis_dict);
+        manip::prune_basis(basis_dict);
     }
 
     if args.augment_diffuse > 0 {
-        manip::geometric_augmentation(&mut basis_dict, args.augment_diffuse, false);
+        manip::geometric_augmentation(basis_dict, args.augment_diffuse, false);
     }
 
     if args.augment_steep > 0 {
-        manip::geometric_augmentation(&mut basis_dict, args.augment_steep, true);
-        sort::sort_basis(&mut basis_dict);
+        manip::geometric_augmentation(basis_dict, args.augment_steep, true);
+        sort::sort_basis(basis_dict);
     }
 
     // Re-make general
     if (args.augment_diffuse > 0 || args.augment_steep > 0) && args.make_general {
-        manip::make_general(&mut basis_dict, false);
+        manip::make_general(basis_dict, false);
     }
 
     match args.get_aux {
         0 => (),
-        1 => basis_dict = manip::autoaux_basis(&basis_dict),
-        2 => basis_dict = manip::autoabs_basis(&basis_dict, 1, 1.5),
+        1 => *basis_dict = manip::autoaux_basis(basis_dict),
+        2 => *basis_dict = manip::autoabs_basis(basis_dict, 1, 1.5),
         _ => bse_raise!(KeyError, "Invalid value for `get_aux`: {}", args.get_aux)?,
     }
 
-    Ok(basis_dict)
+    Ok(())
+}
+
+pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseError> {
+    // Handle data source selection
+    match args.source {
+        BseDataSource::Local => get_basis_local_f(name, &args),
+        #[cfg(feature = "remote")]
+        BseDataSource::Remote => {
+            // Fetch from remote API
+            let mut basis = client::get_basis_remote(name, &args)?;
+            // Apply local manipulations that the REST API doesn't support
+            apply_basis_manipulations(&mut basis, &args)?;
+            Ok(basis)
+        },
+        #[cfg(feature = "remote")]
+        BseDataSource::Auto => {
+            // Try local first, fallback to remote
+            get_basis_local_f(name, &args).or_else(|_| {
+                let mut basis = client::get_basis_remote(name, &args)?;
+                apply_basis_manipulations(&mut basis, &args)?;
+                Ok(basis)
+            })
+        },
+        #[cfg(not(feature = "remote"))]
+        BseDataSource::Auto => get_basis_local_f(name, &args),
+    }
 }
 
 /// Obtain a formatted basis set.

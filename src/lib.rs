@@ -15,3 +15,6 @@ pub mod printing;
 pub mod readers;
 pub mod sort;
 pub mod writers;
+
+#[cfg(feature = "remote")]
+pub mod client;
