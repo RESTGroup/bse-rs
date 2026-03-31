@@ -71,6 +71,8 @@ pub mod misc;
 pub mod prelude;
 pub mod printing;
 pub mod readers;
+pub mod refconverters;
+pub mod references;
 pub mod sort;
 pub mod writers;
 

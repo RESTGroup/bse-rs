@@ -894,6 +894,173 @@ pub fn filter_basis_sets_f(args: BseFilterArgs) -> Result<HashMap<String, BseRoo
 
 /* #endregion */
 
+/* #region reference functions */
+
+/// Obtain information for all stored references.
+///
+/// This returns a nested dictionary with all the data for all the references
+/// from the REFERENCES.json file.
+///
+/// # Arguments
+///
+/// * `data_dir` - Optional data directory. If None, uses the default.
+///
+/// # Example
+///
+/// ```
+/// use bse::prelude::*;
+/// let ref_data = get_reference_data(None);
+/// assert!(!ref_data.is_empty());
+/// // Check for a known reference
+/// assert!(ref_data.contains_key("pritchard2019a"));
+/// println!("Number of references: {}", ref_data.len());
+/// ```
+pub fn get_reference_data(data_dir: Option<String>) -> HashMap<String, BseReferenceEntry> {
+    get_reference_data_f(data_dir).unwrap()
+}
+
+pub fn get_reference_data_f(data_dir: Option<String>) -> Result<HashMap<String, BseReferenceEntry>, BseError> {
+    let data_dir = data_dir.or(get_bse_data_dir());
+    if data_dir.is_none() {
+        return bse_raise!(
+            DataNotFound,
+            "No data directory specified. Please set `BSE_DATA_DIR` environment variable."
+        );
+    }
+    let data_dir = data_dir.unwrap();
+
+    let reffile_path = format!("{data_dir}/REFERENCES.json");
+    let content = std::fs::read_to_string(&reffile_path)?;
+
+    // Parse as raw JSON value first to handle the schema entry
+    let raw: serde_json::Value = serde_json::from_str(&content)?;
+
+    let mut refs: HashMap<String, BseReferenceEntry> = HashMap::new();
+
+    if let Some(obj) = raw.as_object() {
+        for (key, value) in obj {
+            // Skip the schema entry
+            if key == "molssi_bse_schema" {
+                continue;
+            }
+            // Parse each reference entry
+            if let Ok(entry) = serde_json::from_value::<BseReferenceEntry>(value.clone()) {
+                refs.insert(key.clone(), entry);
+            }
+        }
+    }
+
+    Ok(refs)
+}
+
+/// Get the references/citations for a basis set.
+///
+/// Returns citation information for a basis set, optionally filtered by
+/// elements and formatted in various citation formats.
+///
+/// # Arguments
+///
+/// * `basis_name` - Name of the basis set (case insensitive)
+/// * `elements` - Optional element filter (atomic numbers, symbols, or ranges)
+/// * `version` - Optional specific version (defaults to latest)
+/// * `fmt` - Output format (None for structured data, or "bib", "txt", "ris",
+///   "endnote", "json")
+/// * `data_dir` - Optional data directory
+///
+/// # Returns
+///
+/// If `fmt` is None, returns structured reference data as a vector of
+/// [`BseElementReferences`]. Otherwise, returns a formatted string.
+///
+/// # Example
+///
+/// ```
+/// use bse::prelude::*;
+/// // Get structured reference data
+/// let ref_data = get_references("cc-pVTZ", None);
+/// assert!(!ref_data.is_empty());
+///
+/// // Get BibTeX formatted references
+/// let bib = get_references_formatted("cc-pVTZ", None, None, "bib");
+/// assert!(bib.contains("@article"));
+/// println!("{}", bib);
+/// ```
+pub fn get_references(basis_name: &str, elements: Option<&str>) -> Vec<BseElementReferences> {
+    get_references_f(basis_name, elements, None, None).unwrap()
+}
+
+pub fn get_references_f(
+    basis_name: &str,
+    elements: Option<&str>,
+    version: Option<&str>,
+    data_dir: Option<String>,
+) -> Result<Vec<BseElementReferences>, BseError> {
+    // Build args for get_basis
+    let args = BseGetBasisArgsBuilder::default()
+        .elements(elements.map(|s| s.to_string()))
+        .version(version.map(|s| s.to_string()))
+        .data_dir(data_dir.clone())
+        .build()?;
+
+    let basis_dict = get_basis_f(basis_name, args)?;
+    let all_ref_data = get_reference_data_f(data_dir)?;
+
+    Ok(references::compact_references(&basis_dict, &all_ref_data))
+}
+
+/// Get formatted references for a basis set.
+///
+/// This is a convenience function that combines [`get_references`] with
+/// [`convert_references`].
+///
+/// # Arguments
+///
+/// * `basis_name` - Name of the basis set (case insensitive)
+/// * `elements` - Optional element filter
+/// * `version` - Optional specific version
+/// * `fmt` - Output format ("bib", "txt", "ris", "endnote", "json")
+///
+/// # Example
+///
+/// ```
+/// use bse::prelude::*;
+/// let bib = get_references_formatted("cc-pVTZ", Some("H,C,N,O"), None, "bib");
+/// println!("{}", bib);
+/// ```
+pub fn get_references_formatted(basis_name: &str, elements: Option<&str>, version: Option<&str>, fmt: &str) -> String {
+    get_references_formatted_f(basis_name, elements, version, fmt, None).unwrap()
+}
+
+pub fn get_references_formatted_f(
+    basis_name: &str,
+    elements: Option<&str>,
+    version: Option<&str>,
+    fmt: &str,
+    data_dir: Option<String>,
+) -> Result<String, BseError> {
+    let ref_data = get_references_f(basis_name, elements, version, data_dir.clone())?;
+    let all_ref_data = get_reference_data_f(data_dir)?;
+    Ok(refconverters::convert_references(&ref_data, fmt, &all_ref_data))
+}
+
+/// Return information about the reference/citation formats available.
+///
+/// The returned data is a map of format name to display name.
+///
+/// # Example
+///
+/// ```
+/// use bse::prelude::*;
+/// let formats = get_reference_formats();
+/// assert!(formats.contains_key("bib"));
+/// println!("Available formats: {:?}", formats);
+/// ```
+pub fn get_reference_formats() -> HashMap<String, String> {
+    refconverters::get_reference_formats()
+}
+
+/* #endregion */
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1006,5 +1173,55 @@ mod tests {
         let filtered = filter_basis_sets(args);
         assert!(!filtered.is_empty());
         println!("Basis sets covering H-C: {}", filtered.len());
+    }
+
+    #[test]
+    fn test_get_reference_data() {
+        let ref_data = get_reference_data(None);
+        assert!(!ref_data.is_empty());
+        // Check for known reference keys
+        assert!(ref_data.contains_key("pritchard2019a"));
+        assert!(ref_data.contains_key("feller1996a"));
+        println!("Number of references: {}", ref_data.len());
+    }
+
+    #[test]
+    fn test_get_references() {
+        let ref_data = get_references("cc-pVTZ", Some("H,C"));
+        assert!(!ref_data.is_empty());
+
+        // Should have elements grouped
+        for group in &ref_data {
+            assert!(!group.elements.is_empty());
+            println!("Elements: {}", misc::compact_elements(&group.elements));
+        }
+    }
+
+    #[test]
+    fn test_get_references_formatted() {
+        // Test BibTeX format
+        let bib = get_references_formatted("cc-pVTZ", Some("H"), None, "bib");
+        assert!(bib.contains("@article"));
+        println!("BibTeX output:\n{}", &bib[..500.min(bib.len())]);
+
+        // Test plain text format
+        let txt = get_references_formatted("cc-pVTZ", Some("H"), None, "txt");
+        assert!(txt.contains("pritchard2019a") || txt.contains("Dunning"));
+        println!("Plain text output:\n{}", &txt[..500.min(txt.len())]);
+
+        // Test JSON format
+        let json = get_references_formatted("cc-pVTZ", Some("H"), None, "json");
+        assert!(json.starts_with("["));
+        println!("JSON output:\n{}", &json[..200.min(json.len())]);
+    }
+
+    #[test]
+    fn test_get_reference_formats() {
+        let formats = get_reference_formats();
+        assert!(!formats.is_empty());
+        assert!(formats.contains_key("bib"));
+        assert!(formats.contains_key("txt"));
+        assert!(formats.contains_key("json"));
+        println!("Reference formats: {:?}", formats);
     }
 }

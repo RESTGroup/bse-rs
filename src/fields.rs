@@ -551,6 +551,126 @@ pub fn read_skel_metadata_file_f(skel_metadata_relpath: &str, data_dir: &str) ->
 
 /* #endregion */
 
+/* #region Reference data structures */
+
+/// A single reference entry from REFERENCES.json.
+///
+/// Each reference contains an entry type (article, book, thesis, etc.)
+/// and a set of fields (authors, title, journal, year, etc.).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BseReferenceEntry {
+    /// BibTeX entry type (article, book, phdthesis, etc.).
+    #[serde(rename = "_entry_type")]
+    pub entry_type: String,
+    /// Reference fields as a HashMap.
+    /// Field values can be either a single string or an array of strings.
+    #[serde(flatten)]
+    pub fields: HashMap<String, BseReferenceField>,
+}
+
+impl BseReferenceEntry {
+    /// Get a field value as a vector of strings.
+    ///
+    /// For single-string fields, returns a single-element vector.
+    pub fn get_field(&self, key: &str) -> Vec<String> {
+        self.fields.get(key).map(|f| f.to_vec()).unwrap_or_default()
+    }
+
+    /// Get a field value as a single string, if present.
+    ///
+    /// For array fields, returns the first element.
+    pub fn get_field_opt(&self, key: &str) -> Option<String> {
+        self.fields.get(key).and_then(|f| f.first())
+    }
+}
+
+/// Reference field value.
+///
+/// Can be either a single string or an array of strings.
+/// This is needed because reference fields are heterogeneous in the JSON.
+#[derive(Debug, Clone, PartialEq)]
+pub enum BseReferenceField {
+    /// Single string value.
+    Str(String),
+    /// Array of string values (e.g., authors list).
+    Vec(Vec<String>),
+}
+
+impl BseReferenceField {
+    /// Convert to a vector of strings.
+    pub fn to_vec(&self) -> Vec<String> {
+        match self {
+            BseReferenceField::Str(s) => vec![s.clone()],
+            BseReferenceField::Vec(v) => v.clone(),
+        }
+    }
+
+    /// Get the first string value.
+    pub fn first(&self) -> Option<String> {
+        match self {
+            BseReferenceField::Str(s) => Some(s.clone()),
+            BseReferenceField::Vec(v) => v.first().cloned(),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for BseReferenceField {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+        use serde_json::Value;
+
+        let value: Value = Value::deserialize(deserializer)?;
+        match value {
+            Value::String(s) => Ok(BseReferenceField::Str(s)),
+            Value::Array(arr) => {
+                Ok(BseReferenceField::Vec(arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()))
+            },
+            _ => Err(D::Error::custom("Expected a string or an array of strings")),
+        }
+    }
+}
+
+impl Serialize for BseReferenceField {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            BseReferenceField::Str(s) => s.serialize(serializer),
+            BseReferenceField::Vec(v) => v.serialize(serializer),
+        }
+    }
+}
+
+/// Compacted element references group.
+///
+/// Groups elements that share the same reference information together,
+/// with the actual reference data attached.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BseElementReferences {
+    /// Atomic numbers of elements in this group.
+    pub elements: Vec<i32>,
+    /// Reference information for this element group.
+    pub reference_info: Vec<BseReferenceInfoWithData>,
+}
+
+/// Reference info with actual reference data attached.
+///
+/// Combines the reference description with the full reference data
+/// for each reference key.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BseReferenceInfoWithData {
+    /// Human-readable description of this reference.
+    pub reference_description: String,
+    /// Reference data (key -> entry mapping).
+    pub reference_data: Vec<(String, BseReferenceEntry)>,
+}
+
+/* #endregion */
+
 #[cfg(test)]
 mod tests {
     use super::*;

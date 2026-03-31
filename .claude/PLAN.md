@@ -29,12 +29,12 @@ Reference data is important for citing basis sets in publications.
 
 | Function | Description | Status | File |
 |----------|-------------|--------|------|
-| `get_reference_data` | Get all reference data from REFERENCES.json | ❌ TODO | `src/api.rs` |
-| `get_references` | Get citations for a specific basis set | ❌ TODO | `src/api.rs` |
-| `get_reference_formats` | Return available reference formats | ❌ TODO | New module? |
-| `convert_references` | Convert references to bib/txt/json | ❌ TODO | New `refconverters` module |
+| `get_reference_data` | Get all reference data from REFERENCES.json | ✅ DONE | `src/api.rs` |
+| `get_references` | Get citations for a specific basis set | ✅ DONE | `src/api.rs` |
+| `get_reference_formats` | Return available reference formats | ✅ DONE | `src/refconverters/convert.rs` |
+| `convert_references` | Convert references to bib/txt/json | ✅ DONE | `src/refconverters/convert.rs` |
 
-**New module needed**: `src/refconverters/` or integrate into existing modules.
+**Modules created**: `src/refconverters/` (bib, ris, endnote, txt, json converters), `src/references.rs` (compact_references, reference_text)
 
 ---
 
@@ -129,6 +129,6 @@ Notes provide important context about basis sets and families.
 
 ## Progress Tracking
 
-- Last updated: 2026-03-31
-- Completed items: 8 (Priority 1 complete)
+- Last updated: 2026-04-01
+- Completed items: 12 (Priority 1 and 2 complete)
 - Total items tracked: ~40
