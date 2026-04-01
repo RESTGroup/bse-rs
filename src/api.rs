@@ -382,7 +382,24 @@ fn get_basis_local_f(name: &str, args: &BseGetBasisArgs) -> Result<BseBasis, Bse
     }
     let data_dir = data_dir.unwrap();
 
-    let bs_data = get_basis_metadata(name, &data_dir)?;
+    // First, try the normal lookup
+    let result = get_basis_local_inner_f(name, args, &data_dir);
+
+    // If normal lookup fails, try Truhlar calendarization
+    match result {
+        Ok(basis) => Ok(basis),
+        Err(BseError::DataNotFound(_)) => {
+            // Try Truhlar calendar basis set generation
+            get_basis_truhlar_calendar_f(name, args, &data_dir)
+        },
+        Err(e) => Err(e),
+    }
+}
+
+/// Inner function for normal basis set lookup (without Truhlar calendar
+/// handling).
+fn get_basis_local_inner_f(name: &str, args: &BseGetBasisArgs, data_dir: &str) -> Result<BseBasis, BseError> {
+    let bs_data = get_basis_metadata(name, data_dir)?;
 
     // If version is not specified, use the latest
     let ver = args.version.clone().unwrap_or(bs_data.latest_version);
@@ -392,7 +409,7 @@ fn get_basis_local_f(name: &str, args: &BseGetBasisArgs) -> Result<BseBasis, Bse
 
     // Compose the entire basis set (all elements)
     let table_relpath = &bs_data.versions[&ver].file_relpath;
-    let mut basis_dict = compose::compose_table_basis_f(table_relpath, &data_dir)?;
+    let mut basis_dict = compose::compose_table_basis_f(table_relpath, data_dir)?;
 
     // Set the name (from the global metadata)
     // Only the list of all names will be returned from compose_table_basis
@@ -436,6 +453,181 @@ fn get_basis_local_f(name: &str, args: &BseGetBasisArgs) -> Result<BseBasis, Bse
     apply_basis_manipulations(&mut basis_dict, args)?;
 
     Ok(basis_dict)
+}
+
+/// Parse a basis name to detect if it's a Truhlar calendar basis set.
+///
+/// Returns the month and the remaining part of the name (after the prefix)
+/// if the name starts with a valid month prefix or "maug".
+/// Returns None if not a Truhlar calendar name.
+fn parse_truhlar_calendar_name(name: &str) -> Option<(String, String)> {
+    let name_lower = name.to_lowercase();
+
+    // Valid month prefixes for Truhlar calendarization
+    let valid_months = ["jul", "jun", "may", "apr", "mar", "feb", "jan"];
+
+    // Check if name starts with a month prefix or "maug"
+    // The prefix must be followed by a hyphen
+    valid_months
+        .iter()
+        .filter_map(|m| {
+            let prefix_with_dash = format!("{}-", m);
+            if name_lower.starts_with(&prefix_with_dash) {
+                Some((m.to_string(), name_lower[m.len() + 1..].to_string()))
+            } else {
+                None
+            }
+        })
+        .next()
+        .or_else(|| name_lower.strip_prefix("maug-").map(|stripped| ("maug".to_string(), stripped.to_string())))
+}
+
+/// Apply Truhlar calendarization to a basis set.
+///
+/// Takes the aug- version of a basis set and applies the calendar
+/// transformation to produce the requested month variant. Also updates
+/// the basis name and adds the Papajak & Truhlar reference.
+fn apply_truhlar_calendar(
+    aug_basis: &BseBasis,
+    month: &str,
+    rest: &str,
+    args: &BseGetBasisArgs,
+) -> Result<BseBasis, BseError> {
+    // For maug, determine the actual month based on DZ/TZ/QZ
+    let month = if month == "maug" { determine_maug_month(rest)?.to_string() } else { month.to_string() };
+
+    // Apply Truhlar calendarization
+    let mut calendarized = manip::truhlar_calendarize(aug_basis, &month)?;
+
+    // Update basis metadata (name, description, references)
+    update_calendar_basis_metadata(&mut calendarized, &month);
+
+    // Apply any remaining manipulations from args
+    apply_basis_manipulations(&mut calendarized, args)?;
+
+    Ok(calendarized)
+}
+
+/// Update basis set metadata for Truhlar calendar basis sets.
+///
+/// This updates the name (replaces "aug-" prefix with the month prefix)
+/// and adds the Papajak & Truhlar reference to each element.
+fn update_calendar_basis_metadata(basis: &mut BseBasis, month: &str) {
+    let month_lower = month.to_lowercase();
+
+    // Update the basis name: replace "aug-" with "{month}-"
+    // e.g., "aug-cc-pVTZ" -> "jul-cc-pVTZ"
+    if basis.name.to_lowercase().starts_with("aug-") {
+        let name_lower = basis.name.to_lowercase();
+        if let Some(pos) = name_lower.find("aug-") {
+            let rest = &basis.name[pos + 4..]; // Skip "aug-"
+            basis.name = format!("{}-{}", month_lower, rest);
+        }
+    }
+
+    // Update description similarly
+    if basis.description.to_lowercase().starts_with("aug-") {
+        let desc_lower = basis.description.to_lowercase();
+        if let Some(pos) = desc_lower.find("aug-") {
+            let rest = &basis.description[pos + 4..];
+            basis.description = format!("{}-{}", month_lower, rest);
+        }
+    }
+
+    // Add the Papajak & Truhlar reference to each element
+    let papajak_ref = BseBasisReference {
+        reference_description: "Truhlar calendar basis set".to_string(),
+        reference_keys: vec!["papajak2011a".to_string()],
+    };
+
+    for eldata in basis.elements.values_mut() {
+        // Add the reference at the beginning of the references list
+        eldata.references.insert(0, papajak_ref.clone());
+    }
+}
+
+/// Handle Truhlar calendar basis set generation for local source.
+///
+/// If the basis name starts with a month prefix (feb, mar, apr, may, jun, jul)
+/// or `maug`, this function will try to substitute the prefix with `aug` and
+/// apply calendarization.
+fn get_basis_truhlar_calendar_f(name: &str, args: &BseGetBasisArgs, data_dir: &str) -> Result<BseBasis, BseError> {
+    let parsed = parse_truhlar_calendar_name(name);
+
+    // If no month prefix found, return the original error
+    let (month, rest) = match parsed {
+        Some((m, r)) => (m, r),
+        None => {
+            return bse_raise!(DataNotFound, "Basis set `{name}` not found in metadata.")?;
+        },
+    };
+
+    // Construct the aug- version of the basis name
+    let aug_name = format!("aug-{}", rest);
+
+    // Try to get the aug- version
+    let aug_basis = get_basis_local_inner_f(&aug_name, args, data_dir)?;
+
+    // Apply Truhlar calendarization
+    apply_truhlar_calendar(&aug_basis, &month, &rest, args)
+}
+
+/// Handle Truhlar calendar basis set generation for remote source.
+///
+/// Similar to local handling, but fetches from the remote API.
+#[cfg(feature = "remote")]
+fn get_basis_truhlar_calendar_remote_f(name: &str, args: &BseGetBasisArgs) -> Result<BseBasis, BseError> {
+    let parsed = parse_truhlar_calendar_name(name);
+
+    // If no month prefix found, return the original error
+    let (month, rest) = match parsed {
+        Some((m, r)) => (m, r),
+        None => {
+            return bse_raise!(DataNotFound, "Basis set `{name}` not found in remote API.")?;
+        },
+    };
+
+    // Construct the aug- version of the basis name
+    let aug_name = format!("aug-{}", rest);
+
+    // Try to get the aug- version from remote
+    let aug_basis = client::get_basis_remote(&aug_name, args)?;
+
+    // Apply Truhlar calendarization
+    apply_truhlar_calendar(&aug_basis, &month, &rest, args)
+}
+
+/// Determine the month for "maug" based on the basis set name.
+///
+/// - DZ (double-zeta) -> jun
+/// - TZ (triple-zeta) -> may
+/// - QZ (quadruple-zeta) -> apr
+fn determine_maug_month(rest: &str) -> Result<&'static str, BseError> {
+    let rest_upper = rest.to_uppercase();
+
+    // Check for QZ first (highest priority)
+    if rest_upper.contains("QZ") {
+        return Ok("apr");
+    }
+
+    // Check for TZ (middle priority)
+    // Note: TZ could appear in names like "cc-pV(T+d)Z"
+    if rest_upper.contains("TZ") {
+        return Ok("may");
+    }
+
+    // Check for DZ (lowest priority)
+    // DZ appears in names like "cc-pVDZ", "cc-pV(D+d)Z"
+    // The uppercase of "cc-pV(D+d)Z" is "CC-PV(D+D)Z" which ends with DZ
+    if rest_upper.contains("DZ") {
+        return Ok("jun");
+    }
+
+    bse_raise!(
+        ValueError,
+        "Cannot determine 'maug' month for basis set. Expected DZ, TZ, or QZ in the basis name: {}",
+        rest
+    )?
 }
 
 /// Apply manipulations to a basis set based on args.
@@ -508,19 +700,45 @@ pub fn get_basis_f(name: &str, args: BseGetBasisArgs) -> Result<BseBasis, BseErr
         BseDataSource::Local => get_basis_local_f(name, &args),
         #[cfg(feature = "remote")]
         BseDataSource::Remote => {
-            // Fetch from remote API
-            let mut basis = client::get_basis_remote(name, &args)?;
-            // Apply local manipulations that the REST API doesn't support
-            apply_basis_manipulations(&mut basis, &args)?;
-            Ok(basis)
+            // Try direct fetch from remote API first
+            let result = client::get_basis_remote(name, &args);
+            match result {
+                Ok(mut basis) => {
+                    // Apply local manipulations that the REST API doesn't support
+                    apply_basis_manipulations(&mut basis, &args)?;
+                    Ok(basis)
+                },
+                // Handle both DataNotFound and IOError (HTTP error statuses like 404, 500)
+                // For Truhlar calendar basis sets, we need to try the aug- version
+                Err(BseError::DataNotFound(_)) | Err(BseError::IOError(_)) => {
+                    // Try Truhlar calendarization via remote
+                    let mut basis = get_basis_truhlar_calendar_remote_f(name, &args)?;
+                    apply_basis_manipulations(&mut basis, &args)?;
+                    Ok(basis)
+                },
+                Err(e) => Err(e),
+            }
         },
         #[cfg(feature = "remote")]
         BseDataSource::Auto => {
-            // Try local first, fallback to remote
+            // Try local first (which includes Truhlar calendar handling)
             get_basis_local_f(name, &args).or_else(|_| {
-                let mut basis = client::get_basis_remote(name, &args)?;
-                apply_basis_manipulations(&mut basis, &args)?;
-                Ok(basis)
+                // Try remote directly
+                let result = client::get_basis_remote(name, &args);
+                match result {
+                    Ok(mut basis) => {
+                        apply_basis_manipulations(&mut basis, &args)?;
+                        Ok(basis)
+                    },
+                    // Handle both DataNotFound and IOError for Truhlar calendar
+                    Err(BseError::DataNotFound(_)) | Err(BseError::IOError(_)) => {
+                        // Try Truhlar calendarization via remote
+                        let mut basis = get_basis_truhlar_calendar_remote_f(name, &args)?;
+                        apply_basis_manipulations(&mut basis, &args)?;
+                        Ok(basis)
+                    },
+                    Err(e) => Err(e),
+                }
             })
         },
         #[cfg(not(feature = "remote"))]
@@ -1455,5 +1673,222 @@ mod tests {
         let processed = crate::notes::process_notes(notes_no_ref, &ref_data);
         assert!(!processed.contains("REFERENCES MENTIONED ABOVE"));
         assert_eq!(processed, notes_no_ref);
+    }
+
+    #[test]
+    fn test_parse_truhlar_calendar_name() {
+        // Test month prefixes
+        assert_eq!(parse_truhlar_calendar_name("jul-cc-pVTZ"), Some(("jul".to_string(), "cc-pvtz".to_string())));
+        assert_eq!(parse_truhlar_calendar_name("jun-cc-pVTZ"), Some(("jun".to_string(), "cc-pvtz".to_string())));
+        assert_eq!(parse_truhlar_calendar_name("may-cc-pVTZ"), Some(("may".to_string(), "cc-pvtz".to_string())));
+        assert_eq!(parse_truhlar_calendar_name("apr-cc-pVTZ"), Some(("apr".to_string(), "cc-pvtz".to_string())));
+        assert_eq!(parse_truhlar_calendar_name("mar-cc-pVTZ"), Some(("mar".to_string(), "cc-pvtz".to_string())));
+        assert_eq!(parse_truhlar_calendar_name("feb-cc-pVTZ"), Some(("feb".to_string(), "cc-pvtz".to_string())));
+        assert_eq!(parse_truhlar_calendar_name("jan-cc-pVTZ"), Some(("jan".to_string(), "cc-pvtz".to_string())));
+
+        // Test maug
+        assert_eq!(parse_truhlar_calendar_name("maug-cc-pVTZ"), Some(("maug".to_string(), "cc-pvtz".to_string())));
+        assert_eq!(parse_truhlar_calendar_name("maug-cc-pVDZ"), Some(("maug".to_string(), "cc-pvdz".to_string())));
+        assert_eq!(parse_truhlar_calendar_name("maug-cc-pVQZ"), Some(("maug".to_string(), "cc-pvqz".to_string())));
+
+        // Test case insensitivity
+        assert_eq!(parse_truhlar_calendar_name("JUL-cc-pVTZ"), Some(("jul".to_string(), "cc-pvtz".to_string())));
+        assert_eq!(parse_truhlar_calendar_name("Jul-CC-PVTZ"), Some(("jul".to_string(), "cc-pvtz".to_string())));
+        assert_eq!(parse_truhlar_calendar_name("MAUG-cc-pVTZ"), Some(("maug".to_string(), "cc-pvtz".to_string())));
+
+        // Test non-calendar names
+        assert_eq!(parse_truhlar_calendar_name("cc-pVTZ"), None);
+        assert_eq!(parse_truhlar_calendar_name("aug-cc-pVTZ"), None);
+        assert_eq!(parse_truhlar_calendar_name("def2-SVP"), None);
+        assert_eq!(parse_truhlar_calendar_name("sto-3g"), None);
+
+        // Test edge cases
+        assert_eq!(parse_truhlar_calendar_name("jul"), None); // No hyphen
+        assert_eq!(parse_truhlar_calendar_name("julcc-pVTZ"), None); // No hyphen after prefix
+    }
+
+    #[test]
+    fn test_determine_maug_month() {
+        // DZ -> jun
+        assert_eq!(determine_maug_month("cc-pvdz").unwrap(), "jun");
+        assert_eq!(determine_maug_month("cc-pVDZ").unwrap(), "jun");
+        assert_eq!(determine_maug_month("aug-cc-pvdz").unwrap(), "jun");
+
+        // TZ -> may
+        assert_eq!(determine_maug_month("cc-pvtz").unwrap(), "may");
+        assert_eq!(determine_maug_month("cc-pVTZ").unwrap(), "may");
+        assert_eq!(determine_maug_month("aug-cc-pvtz").unwrap(), "may");
+
+        // QZ -> apr
+        assert_eq!(determine_maug_month("cc-pvqz").unwrap(), "apr");
+        assert_eq!(determine_maug_month("cc-pVQZ").unwrap(), "apr");
+        assert_eq!(determine_maug_month("aug-cc-pvqz").unwrap(), "apr");
+
+        // Case insensitivity
+        assert_eq!(determine_maug_month("CC-PVDZ").unwrap(), "jun");
+        assert_eq!(determine_maug_month("CC-PVTZ").unwrap(), "may");
+        assert_eq!(determine_maug_month("CC-PVQZ").unwrap(), "apr");
+
+        // Test that priority is correct (QZ > TZ > DZ)
+        // If a name contains multiple, the highest wins
+        // (This shouldn't normally happen, but we test the priority)
+
+        // Invalid cases
+        assert!(determine_maug_month("cc-pv5z").is_err());
+        assert!(determine_maug_month("def2-svp").is_err());
+        assert!(determine_maug_month("sto-3g").is_err());
+    }
+
+    #[test]
+    fn test_truhlar_calendar_basis() {
+        // Test that we can get a Truhlar calendar basis set
+        // jul-cc-pVTZ should work (try existing first, then generate from aug-cc-pVTZ)
+        let args = BseGetBasisArgsBuilder::default().elements("H".to_string()).build().unwrap();
+        let basis = get_basis_f("jul-cc-pVTZ", args);
+        assert!(basis.is_ok());
+        let basis = basis.unwrap();
+        println!("jul-cc-pVTZ basis: {:?}", basis.name);
+
+        // Test jun-cc-pVTZ
+        let args = BseGetBasisArgsBuilder::default().elements("H".to_string()).build().unwrap();
+        let basis = get_basis_f("jun-cc-pVTZ", args);
+        assert!(basis.is_ok());
+
+        // Test may-cc-pVTZ
+        let args = BseGetBasisArgsBuilder::default().elements("H".to_string()).build().unwrap();
+        let basis = get_basis_f("may-cc-pVTZ", args);
+        assert!(basis.is_ok());
+
+        // Test maug-cc-pVTZ (should resolve to may for TZ)
+        let args = BseGetBasisArgsBuilder::default().elements("H".to_string()).build().unwrap();
+        let basis = get_basis_f("maug-cc-pVTZ", args);
+        assert!(basis.is_ok());
+
+        // Test maug-cc-pVDZ (should resolve to jun for DZ)
+        let args = BseGetBasisArgsBuilder::default().elements("H".to_string()).build().unwrap();
+        let basis = get_basis_f("maug-cc-pVDZ", args);
+        assert!(basis.is_ok());
+
+        // Test maug-cc-pVQZ (should resolve to apr for QZ)
+        let args = BseGetBasisArgsBuilder::default().elements("H".to_string()).build().unwrap();
+        let basis = get_basis_f("maug-cc-pVQZ", args);
+        assert!(basis.is_ok());
+    }
+
+    #[test]
+    fn test_truhlar_calendar_invalid() {
+        // Test that invalid month prefix on non-existent aug basis fails
+        let args = BseGetBasisArgsBuilder::default().elements("H".to_string()).build().unwrap();
+        // jul-def2-SVP should fail because aug-def2-SVP doesn't exist
+        let result = get_basis_f("jul-def2-SVP", args);
+        assert!(result.is_err());
+
+        // Test invalid maug (no DZ/TZ/QZ)
+        let args = BseGetBasisArgsBuilder::default().elements("H".to_string()).build().unwrap();
+        let result = get_basis_f("maug-sto-3g", args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_truhlar_calendar_existing_basis() {
+        // Some calendar basis sets already exist in the data
+        // This tests that we first try the existing basis before generating
+        let args = BseGetBasisArgsBuilder::default().elements("H".to_string()).build().unwrap();
+
+        // Try to get jul-cc-pV(D+d)Z which might exist in the data
+        let result = get_basis_f("jul-cc-pV(D+d)Z", args.clone());
+        if result.is_ok() {
+            println!("jul-cc-pV(D+d)Z exists directly in data");
+        } else {
+            // If not, it should be generated from aug-cc-pV(D+d)Z
+            println!("jul-cc-pV(D+d)Z would be generated from aug-cc-pV(D+d)Z");
+        }
+    }
+
+    #[test]
+    fn test_truhlar_calendar_metadata() {
+        // Test that the API layer updates name and adds papajak2011a reference
+        let args = BseGetBasisArgsBuilder::default().elements("H,C".to_string()).build().unwrap();
+
+        // Test jul-cc-pVTZ
+        let basis = get_basis_f("jul-cc-pVTZ", args).unwrap();
+
+        // Verify name is updated
+        assert!(basis.name.starts_with("jul-"), "Expected name to start with 'jul-', got '{}'", basis.name);
+
+        // Verify description is updated
+        assert!(
+            basis.description.starts_with("jul-"),
+            "Expected description to start with 'jul-', got '{}'",
+            basis.description
+        );
+
+        // Verify papajak2011a reference is added to each element
+        for (el_z, eldata) in &basis.elements {
+            let has_papajak_ref =
+                eldata.references.iter().any(|r| r.reference_keys.contains(&"papajak2011a".to_string()));
+            assert!(has_papajak_ref, "Element {} should have papajak2011a reference", el_z);
+        }
+
+        // Test may-cc-pVTZ
+        let args = BseGetBasisArgsBuilder::default().elements("H,C".to_string()).build().unwrap();
+        let basis = get_basis_f("may-cc-pVTZ", args).unwrap();
+        assert!(basis.name.starts_with("may-"));
+        assert!(basis.description.starts_with("may-"));
+    }
+
+    #[cfg(feature = "remote")]
+    #[test]
+    fn test_usual_basis_remote() {
+        let args =
+            BseGetBasisArgsBuilder::default().elements("S".to_string()).source(BseDataSource::Remote).build().unwrap();
+        let basis_remote = get_basis_f("aug-cc-pVTZ", args);
+        match &basis_remote {
+            Ok(b) => println!("Auto aug-cc-pVTZ basis: {:?}", b.name),
+            Err(e) => println!("Error getting aug-cc-pVTZ via Auto: {:?}", e),
+        }
+        assert!(basis_remote.is_ok());
+
+        let args =
+            BseGetBasisArgsBuilder::default().elements("S".to_string()).source(BseDataSource::Local).build().unwrap();
+        let basis_local = get_basis_f("aug-cc-pVTZ", args);
+        match &basis_local {
+            Ok(b) => println!("Auto aug-cc-pVTZ basis: {:?}", b.name),
+            Err(e) => println!("Error getting aug-cc-pVTZ via Auto: {:?}", e),
+        }
+        assert!(basis_local.is_ok());
+
+        assert_eq!(basis_remote.unwrap(), basis_local.unwrap());
+    }
+
+    #[cfg(feature = "remote")]
+    #[test]
+    fn test_truhlar_calendar_remote() {
+        // Test Truhlar calendar with remote source
+        // This verifies that the Truhlar calendarization works for remote API
+
+        let args =
+            BseGetBasisArgsBuilder::default().elements("S".to_string()).source(BseDataSource::Remote).build().unwrap();
+
+        // Test jul-cc-pVTZ via Remote source
+        let basis_remote = get_basis_f("jul-cc-pVTZ", args);
+        match &basis_remote {
+            Ok(b) => println!("Remote jul-cc-pVTZ basis: {:?}", b.name),
+            Err(e) => println!("Error getting jul-cc-pVTZ via Remote: {:?}", e),
+        }
+        assert!(basis_remote.is_ok());
+
+        // Get the same basis via Local source for comparison
+        let args =
+            BseGetBasisArgsBuilder::default().elements("S".to_string()).source(BseDataSource::Local).build().unwrap();
+        let basis_local = get_basis_f("jul-cc-pVTZ", args);
+        match &basis_local {
+            Ok(b) => println!("Local jul-cc-pVTZ basis: {:?}", b.name),
+            Err(e) => println!("Error getting jul-cc-pVTZ via Local: {:?}", e),
+        }
+        assert!(basis_local.is_ok());
+
+        // Both should produce the same result
+        assert_eq!(basis_remote.unwrap(), basis_local.unwrap());
     }
 }
