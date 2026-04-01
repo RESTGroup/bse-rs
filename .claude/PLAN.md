@@ -57,18 +57,20 @@ Notes provide important context about basis sets and families.
 
 | Format | Description | Status | File |
 |--------|-------------|--------|------|
-| `molcas` | Molcas format | ❌ TODO | `src/readers/molcas.rs` |
-| `molpro` | Molpro format | ❌ TODO | `src/readers/molpro.rs` |
+| `molcas` | Molcas format | ✅ DONE | `src/readers/molcas.rs` |
+| `molpro` | Molpro format | ✅ DONE | `src/readers/molpro.rs` |
 | `libmol` | Molpro system library | ❌ TODO | `src/readers/libmol.rs` |
-| `genbas` / `cfour` | CFOUR/ACES2 format | ❌ TODO | `src/readers/genbas.rs` |
+| `genbas` / `cfour` | CFOUR/ACES2 format | ✅ DONE | `src/readers/genbas.rs` |
 | `gbasis` | GBasis format | ❌ TODO | `src/readers/gbasis.rs` |
-| `gamess_us` | GAMESS US format | ❌ TODO | `src/readers/gamess_us.rs` |
+| `gamess_us` | GAMESS US format | ✅ DONE | `src/readers/gamess_us.rs` |
 | `demon2k` | deMon2k format | ❌ TODO | `src/readers/demon2k.rs` |
-| `cp2k` | CP2K format | ❌ TODO | `src/readers/cp2k.rs` |
-| `crystal` | Crystal format | ❌ TODO | `src/readers/crystal.rs` |
+| `cp2k` | CP2K format | ✅ DONE | `src/readers/cp2k.rs` |
+| `crystal` | Crystal format | ✅ DONE | `src/readers/crystal.rs` |
 | `veloxchem` | VeloxChem format | ❌ TODO | `src/readers/veloxchem.rs` |
 | `ricdlib` | MolCAS RICDlib format | ❌ TODO | `src/readers/ricdlib.rs` |
 | `json` | JSON/BSE JSON format | ❌ TODO | `src/readers/bsejson.rs` |
+
+**Completed readers handle**: Electron shells, ECP potentials, general contractions, SP combined shells.
 
 ---
 
@@ -130,5 +132,5 @@ Notes provide important context about basis sets and families.
 ## Progress Tracking
 
 - Last updated: 2026-04-01
-- Completed items: 12 (Priority 1 and 2 complete)
+- Completed items: 18 (Priority 1, 2, and 4 mostly complete)
 - Total items tracked: ~40
