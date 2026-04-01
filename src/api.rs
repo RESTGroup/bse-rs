@@ -1061,6 +1061,159 @@ pub fn get_reference_formats() -> HashMap<String, String> {
 
 /* #endregion */
 
+/* #region notes functions */
+
+/// Return a string representing the notes about a basis set family.
+///
+/// If notes are not found, an empty string is returned. If references are
+/// mentioned in the notes, their full text is appended at the end.
+///
+/// # Arguments
+///
+/// * `family` - Family name (case insensitive, e.g., "dunning", "ahlrichs")
+/// * `data_dir` - Optional data directory. If None, uses the default.
+///
+/// # Example
+///
+/// ```
+/// use bse::prelude::*;
+/// let notes = get_family_notes("ahlrichs", None);
+/// println!("{}", notes);
+/// ```
+pub fn get_family_notes(family: &str, data_dir: Option<String>) -> String {
+    get_family_notes_f(family, data_dir).unwrap()
+}
+
+pub fn get_family_notes_f(family: &str, data_dir: Option<String>) -> Result<String, BseError> {
+    let file_path = family_notes_path(family, data_dir.clone())?;
+    let notes_str = notes::read_notes_file(&file_path);
+
+    let notes_str = notes_str.unwrap_or_default();
+
+    let ref_data = get_reference_data_f(data_dir)?;
+    Ok(notes::process_notes(&notes_str, &ref_data))
+}
+
+/// Check if notes exist for a given family.
+///
+/// Returns true if the NOTES.{family} file exists, false otherwise.
+///
+/// # Arguments
+///
+/// * `family` - Family name (case insensitive)
+/// * `data_dir` - Optional data directory
+///
+/// # Example
+///
+/// ```
+/// use bse::prelude::*;
+/// let has_notes = has_family_notes("ahlrichs", None);
+/// println!("ahlrichs family has notes: {}", has_notes);
+/// ```
+pub fn has_family_notes(family: &str, data_dir: Option<String>) -> bool {
+    has_family_notes_f(family, data_dir).unwrap()
+}
+
+pub fn has_family_notes_f(family: &str, data_dir: Option<String>) -> Result<bool, BseError> {
+    let file_path = family_notes_path(family, data_dir)?;
+    Ok(std::path::Path::new(&file_path).exists())
+}
+
+/// Return a string representing the notes about a specific basis set.
+///
+/// If notes are not found, an empty string is returned. If references are
+/// mentioned in the notes, their full text is appended at the end.
+///
+/// # Arguments
+///
+/// * `name` - Basis set name (case insensitive)
+/// * `data_dir` - Optional data directory
+///
+/// # Example
+///
+/// ```
+/// use bse::prelude::*;
+/// let notes = get_basis_notes("def2-SVP", None);
+/// println!("{}", notes);
+/// ```
+pub fn get_basis_notes(name: &str, data_dir: Option<String>) -> String {
+    get_basis_notes_f(name, data_dir).unwrap()
+}
+
+pub fn get_basis_notes_f(name: &str, data_dir: Option<String>) -> Result<String, BseError> {
+    let file_path = basis_notes_path(name, data_dir.clone())?;
+    let notes_str = notes::read_notes_file(&file_path);
+
+    let notes_str = notes_str.unwrap_or_default();
+
+    let ref_data = get_reference_data_f(data_dir)?;
+    Ok(notes::process_notes(&notes_str, &ref_data))
+}
+
+/// Check if notes exist for a given basis set.
+///
+/// Returns true if the {basename}.notes file exists, false otherwise.
+///
+/// # Arguments
+///
+/// * `name` - Basis set name (case insensitive)
+/// * `data_dir` - Optional data directory
+///
+/// # Example
+///
+/// ```
+/// use bse::prelude::*;
+/// let has_notes = has_basis_notes("def2-SVP", None);
+/// println!("def2-SVP has notes: {}", has_notes);
+/// ```
+pub fn has_basis_notes(name: &str, data_dir: Option<String>) -> bool {
+    has_basis_notes_f(name, data_dir).unwrap()
+}
+
+pub fn has_basis_notes_f(name: &str, data_dir: Option<String>) -> Result<bool, BseError> {
+    let file_path = basis_notes_path(name, data_dir)?;
+    Ok(std::path::Path::new(&file_path).exists())
+}
+
+// Helper functions to construct notes file paths
+
+fn family_notes_path(family: &str, data_dir: Option<String>) -> Result<String, BseError> {
+    let data_dir = data_dir.or(get_bse_data_dir());
+    if data_dir.is_none() {
+        return bse_raise!(
+            DataNotFound,
+            "No data directory specified. Please set `BSE_DATA_DIR` environment variable."
+        );
+    }
+    let data_dir = data_dir.unwrap();
+
+    let family = family.to_lowercase();
+    let families = get_families_f(Some(data_dir.clone()))?;
+    if !families.contains(&family) {
+        bse_raise!(ValueError, "Family '{}' does not exist", family)?;
+    }
+
+    let file_name = format!("NOTES.{}", family);
+    Ok(format!("{}/{}", data_dir, file_name))
+}
+
+fn basis_notes_path(name: &str, data_dir: Option<String>) -> Result<String, BseError> {
+    let data_dir = data_dir.or(get_bse_data_dir());
+    if data_dir.is_none() {
+        return bse_raise!(
+            DataNotFound,
+            "No data directory specified. Please set `BSE_DATA_DIR` environment variable."
+        );
+    }
+    let data_dir = data_dir.unwrap();
+
+    let bs_data = get_basis_metadata(name, &data_dir)?;
+    let filebase = bs_data.basename;
+    Ok(format!("{}/{}.notes", data_dir, filebase))
+}
+
+/* #endregion */
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1223,5 +1376,84 @@ mod tests {
         assert!(formats.contains_key("txt"));
         assert!(formats.contains_key("json"));
         println!("Reference formats: {:?}", formats);
+    }
+
+    #[test]
+    fn test_get_family_notes() {
+        // Test that family notes can be retrieved
+        let notes = get_family_notes("ahlrichs", None);
+        assert!(notes.contains("def2"));
+        println!("ahlrichs family notes:\n{}", &notes[..500.min(notes.len())]);
+
+        // Test another family
+        let notes = get_family_notes("dunning", None);
+        assert!(notes.contains("cc-pV") || notes.contains("correlation-consistent"));
+        println!("dunning family notes:\n{}", &notes[..500.min(notes.len())]);
+
+        // Test empty family (no notes file)
+        // Most families have notes, so we just check we get something
+        let notes = get_family_notes("pople", None);
+        // pople family notes should exist
+        println!("pople family notes length: {}", notes.len());
+    }
+
+    #[test]
+    fn test_get_basis_notes() {
+        // Test basis with notes
+        let notes = get_basis_notes("def2-SVP", None);
+        assert!(notes.contains("Original BSE Contributor"));
+        println!("def2-SVP basis notes:\n{}", &notes[..500.min(notes.len())]);
+
+        // Test basis with notes that have reference substitution
+        let notes = get_basis_notes("3-21G", None);
+        assert!(notes.contains("Caesium"));
+        assert!(notes.contains("REFERENCES MENTIONED ABOVE"));
+        println!("3-21G basis notes:\n{}", &notes[..500.min(notes.len())]);
+
+        // Test basis without notes file (should return empty string)
+        // Most basis sets have notes, but we test it works
+        let notes = get_basis_notes("cc-pVTZ", None);
+        println!("cc-pVTZ basis notes length: {}", notes.len());
+    }
+
+    #[test]
+    fn test_has_family_notes() {
+        // Test existing family notes
+        assert!(has_family_notes("ahlrichs", None));
+        assert!(has_family_notes("dunning", None));
+        assert!(has_family_notes("pople", None));
+
+        // Non-existing family should raise error, so we test case insensitivity
+        assert!(has_family_notes("AHLRICHS", None)); // uppercase should work
+    }
+
+    #[test]
+    fn test_has_basis_notes() {
+        // Test existing basis notes
+        assert!(has_basis_notes("def2-SVP", None));
+        assert!(has_basis_notes("3-21G", None));
+        assert!(has_basis_notes("cc-pVTZ", None));
+
+        // Case insensitivity
+        assert!(has_basis_notes("DEF2-SVP", None));
+    }
+
+    #[test]
+    fn test_process_notes() {
+        // Test the process_notes function directly
+        let ref_data = get_reference_data(None);
+
+        // Notes with reference key
+        let notes_with_ref = "This basis set uses andzelm1984a for Cs.";
+        let processed = crate::notes::process_notes(notes_with_ref, &ref_data);
+        assert!(processed.contains("REFERENCES MENTIONED ABOVE"));
+        assert!(processed.contains("andzelm1984a"));
+        println!("Processed notes:\n{}", processed);
+
+        // Notes without reference key
+        let notes_no_ref = "This is just a regular note.";
+        let processed = crate::notes::process_notes(notes_no_ref, &ref_data);
+        assert!(!processed.contains("REFERENCES MENTIONED ABOVE"));
+        assert_eq!(processed, notes_no_ref);
     }
 }

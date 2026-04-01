@@ -68,6 +68,7 @@ pub mod lut;
 pub mod lut_data;
 pub mod manip;
 pub mod misc;
+pub mod notes;
 pub mod prelude;
 pub mod printing;
 pub mod readers;

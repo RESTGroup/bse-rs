@@ -56,10 +56,11 @@
 
 pub use crate::api::*;
 pub use crate::api::{
-    filter_basis_sets, filter_basis_sets_f, get_all_basis_names, get_all_basis_names_f, get_families, get_families_f,
-    get_reference_data, get_reference_data_f, get_reference_formats, get_references, get_references_f,
-    get_references_formatted, get_references_formatted_f, get_roles, lookup_basis_by_role, lookup_basis_by_role_f,
-    BseFilterArgs, BseFilterArgsBuilder,
+    filter_basis_sets, filter_basis_sets_f, get_all_basis_names, get_all_basis_names_f, get_basis_notes,
+    get_basis_notes_f, get_families, get_families_f, get_family_notes, get_family_notes_f, get_reference_data,
+    get_reference_data_f, get_reference_formats, get_references, get_references_f, get_references_formatted,
+    get_references_formatted_f, get_roles, has_basis_notes, has_basis_notes_f, has_family_notes, has_family_notes_f,
+    lookup_basis_by_role, lookup_basis_by_role_f, BseFilterArgs, BseFilterArgsBuilder,
 };
 pub use crate::fields::{
     BseAuxiliary, BseBasis, BseBasisElement, BseBasisMinimal, BseBasisReference, BseEcpElement, BseEcpPotential,
@@ -67,6 +68,7 @@ pub use crate::fields::{
     BseReferenceInfoWithData, BseRootMetadata, BseRootMetadataVer, BseSkelComponentEcp, BseSkelComponentGto,
     BseSkelElement, BseSkelMetadata, BseSkelTable,
 };
+pub use crate::notes::process_notes;
 pub use crate::readers::read::{get_reader_formats, read_formatted_basis_str, read_formatted_basis_str_f};
 pub use crate::refconverters::{convert_references, get_reference_format_extension};
 pub use crate::references::compact_references;

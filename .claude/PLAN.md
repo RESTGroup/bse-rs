@@ -44,12 +44,12 @@ Notes provide important context about basis sets and families.
 
 | Function | Description | Status | File |
 |----------|-------------|--------|------|
-| `get_basis_notes` | Get notes for a specific basis set | ❌ TODO | `src/api.rs` or new `notes.rs` |
-| `get_family_notes` | Get notes for a basis set family | ❌ TODO | `src/api.rs` or new `notes.rs` |
-| `has_basis_notes` | Check if basis notes exist | ❌ TODO | `src/api.rs` |
-| `has_family_notes` | Check if family notes exist | ❌ TODO | `src/api.rs` |
+| `get_basis_notes` | Get notes for a specific basis set | ✅ DONE | `src/api.rs` |
+| `get_family_notes` | Get notes for a basis set family | ✅ DONE | `src/api.rs` |
+| `has_basis_notes` | Check if basis notes exist | ✅ DONE | `src/api.rs` |
+| `has_family_notes` | Check if family notes exist | ✅ DONE | `src/api.rs` |
 
-**New module needed**: `src/notes.rs` for notes processing with reference substitution.
+**Module created**: `src/notes.rs` for notes processing with reference substitution.
 
 ---
 
@@ -132,5 +132,5 @@ Notes provide important context about basis sets and families.
 ## Progress Tracking
 
 - Last updated: 2026-04-01
-- Completed items: 23 (Priority 1, 2, 4, and 5 complete)
+- Completed items: 27 (Priority 1, 2, 3, 4 (partial), and 5 complete)
 - Total items tracked: ~40
