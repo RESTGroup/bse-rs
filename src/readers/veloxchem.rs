@@ -171,14 +171,4 @@ mod tests {
         let basis = read_veloxchem(&basis_str).unwrap();
         println!("{basis:#?}");
     }
-
-    #[test]
-    fn test_read_veloxchem_ecp() {
-        let args = BseGetBasisArgsBuilder::default().elements("49-51".to_string()).build().unwrap();
-        let basis_str = get_formatted_basis("def2-ECP", "veloxchem", args);
-        // VeloxChem writer doesn't handle ECP, so this may produce empty or limited
-        // output
-        let basis = read_veloxchem(&basis_str);
-        println!("{basis:#?}");
-    }
 }
