@@ -363,33 +363,37 @@ Full API documentation is available at [docs.rs/bse](https://docs.rs/bse).
 
 ## CLI Reference
 
-```bash
-bse-rs [OPTIONS] <COMMAND>
+```
+Usage: bse-rs [OPTIONS] <COMMAND>
 
 Commands:
-  list-basis-sets      List available basis sets
-  list-writer-formats  List output formats
-  list-reader-formats  List input formats
-  list-families        List basis set families
-  list-roles           List basis set roles
-  get-basis            Get formatted basis set
-  get-info             Get basis set metadata
-  get-refs             Get citations
-  get-versions         List versions of a basis set
-  get-notes            Get basis set notes
-  get-family           Get basis set family
-  get-family-notes     Get family notes
-  lookup-by-role       Find auxiliary basis
-  convert-basis        Convert between formats
-  autoaux-basis        Generate AutoAux basis
-  autoabs-basis        Generate AutoABS basis
-  get-data-dir         Show data directory path
-  completion           Generate shell completion
+  list-writer-formats  Output a list of basis set formats that can be written
+  list-reader-formats  Output a list of basis set formats that can be read
+  list-ref-formats     Output a list of all available reference formats and descriptions
+  list-roles           Output a list of all available roles and descriptions
+  get-data-dir         Output the default data directory of this package
+  list-basis-sets      Output a list of all available basis sets and descriptions
+  list-families        Output a list of all available basis set families
+  lookup-by-role       Lookup a companion/auxiliary basis by primary basis and role
+  get-basis            Output a formatted basis set
+  get-refs             Output references for a basis set
+  get-info             Output general info and metadata for a basis set
+  get-notes            Output the notes for a basis set
+  get-family           Output the family of a basis set
+  get-versions         Output a list of all available versions of a basis set
+  get-family-notes     Get the notes of a family of basis sets
+  convert-basis        Convert basis set files from one format to another
+  autoaux-basis        Form AutoAux auxiliary basis
+  autoabs-basis        Form AutoABS auxiliary basis
+  completion           Generate or install shell completion scripts
+  help                 Print this message or the help of the given subcommand(s)
 
 Options:
-  -d, --data-dir <PATH>  Override data directory
-  --source <SOURCE>      Data source: local, remote, auto
-  -o, --output <PATH>    Output file path
+  -d, --data-dir <PATH>  Override which data directory to use
+      --source <SOURCE>  Data source: 'local', 'remote' (requires remote feature), or 'auto'. Default is from BSE_REMOTE env var, or 'local' if unset
+  -o, --output <PATH>    Output to given file rather than stdout
+  -h, --help             Print help
+  -V, --version          Print version
 ```
 
 ## Comparison with Python BSE
