@@ -62,6 +62,8 @@
 pub mod api;
 pub mod cli;
 pub mod compose;
+pub mod dir_reader;
+pub mod dir_writer;
 pub mod error;
 pub mod fields;
 pub mod ints;

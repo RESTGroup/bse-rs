@@ -2,6 +2,24 @@
 
 use crate::prelude::*;
 
+/// Check if format is a directory format (starts with "dir-").
+pub fn is_dir_format(fmt: &str) -> bool {
+    fmt.to_lowercase().starts_with("dir-")
+}
+
+/// Strip "dir-" prefix from format name to get underlying format.
+///
+/// Returns the format name without the "dir-" prefix.
+/// If the format doesn't start with "dir-", returns it unchanged.
+pub fn strip_dir_prefix(fmt: &str) -> &str {
+    let fmt_lower = fmt.to_lowercase();
+    if fmt_lower.starts_with("dir-") {
+        &fmt[4..]
+    } else {
+        fmt
+    }
+}
+
 /// Format information for a writer.
 #[allow(dead_code)]
 struct WriterFormat {
@@ -177,6 +195,12 @@ fn writer_format_map() -> HashMap<&'static str, WriterFormat> {
         }),
         ("bsejson", WriterFormat {
             display: "BSE JSON",
+            extension: ".json",
+            comment: "",
+            valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
+        }),
+        ("json", WriterFormat {
+            display: "JSON",
             extension: ".json",
             comment: "",
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
@@ -391,7 +415,7 @@ fn writer_map(fmt: &str) -> Option<Writer> {
             valid: vec!["gto", "gto_cartesian", "gto_spherical", "scalar_ecp"],
             function: writers::bsedebug::write_bsedebug,
         }),
-        "bsejson" => Some(Writer {
+        "bsejson" | "json" => Some(Writer {
             display: "BSE JSON",
             extension: ".json",
             comment: "",

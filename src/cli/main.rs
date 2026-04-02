@@ -3,6 +3,7 @@
 //! This CLI is functionally equivalent to the Python BSE CLI.
 
 use bse::cli::handlers::*;
+use bse::is_dir_format;
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::Shell;
 use std::path::PathBuf;
@@ -441,6 +442,13 @@ fn main() {
 
     let data_dir_str = cli.data_dir.as_ref().map(|p| p.to_string_lossy().to_string());
 
+    // Check if this is a directory format (needed for output handling)
+    let is_dir_output = match &cli.command {
+        Commands::GetBasis(args) => is_dir_format(&args.fmt),
+        Commands::ConvertBasis(args) => args.out_fmt.as_ref().map(|f| is_dir_format(f)).unwrap_or(false),
+        _ => false,
+    };
+
     // Handle the command and get output
     let result = match cli.command {
         // Simple listings
@@ -482,6 +490,7 @@ fn main() {
             args.aug_steep,
             args.get_aux,
             data_dir_str,
+            cli.output.clone(),
         ),
 
         // Get references
@@ -524,8 +533,14 @@ fn main() {
     // Handle result
     match result {
         Ok(output) => {
-            // Write output to file or stdout
-            if let Some(output_path) = cli.output {
+            // For directory formats, output is a success message (already written)
+            // For regular formats, write to file or stdout
+            if is_dir_output {
+                // Directory format - output is already written, just print message
+                if !output.is_empty() {
+                    println!("{}", output);
+                }
+            } else if let Some(output_path) = cli.output {
                 if let Err(e) = std::fs::write(&output_path, output + "\n") {
                     eprintln!("Error writing to {}: {}", output_path.display(), e);
                     std::process::exit(1);

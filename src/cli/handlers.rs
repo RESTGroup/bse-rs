@@ -127,6 +127,7 @@ pub fn handle_lookup_by_role(basis: String, role: String, data_dir: Option<Strin
 /// Handle the `get-basis` subcommand.
 ///
 /// Outputs a formatted basis set with all optional manipulations.
+/// Supports both single-file and directory formats.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_get_basis(
     basis: String,
@@ -144,6 +145,7 @@ pub fn handle_get_basis(
     aug_steep: i32,
     get_aux: i32,
     data_dir: Option<String>,
+    output_path: Option<PathBuf>,
 ) -> Result<String, BseError> {
     let args = BseGetBasisArgsBuilder::default()
         .elements(elements)
@@ -161,7 +163,20 @@ pub fn handle_get_basis(
         .data_dir(data_dir)
         .build()?;
 
-    Ok(get_formatted_basis(&basis, &fmt, args))
+    // Check if directory format
+    if is_dir_format(&fmt) {
+        // For directory format, output_path is required
+        let dir_path = output_path
+            .ok_or_else(|| BseError::ValueError("Directory format requires output path (-o option)".to_string()))?;
+
+        let underlying_fmt = strip_dir_prefix(&fmt);
+        let basis_data = get_basis(&basis, args);
+        write_basis_to_dir_f(&basis_data, &dir_path, underlying_fmt)?;
+
+        Ok(format!("Basis set '{}' written to {}", basis, dir_path.display()))
+    } else {
+        Ok(get_formatted_basis(&basis, &fmt, args))
+    }
 }
 
 /// Handle the `get-refs` subcommand.
@@ -295,6 +310,7 @@ pub fn handle_get_family_notes(family: String, data_dir: Option<String>) -> Resu
 /// Handle the `convert-basis` subcommand.
 ///
 /// Converts a basis set file from one format to another.
+/// Supports both single-file and directory formats.
 pub fn handle_convert_basis(
     input_file: PathBuf,
     output_file: PathBuf,
@@ -302,9 +318,25 @@ pub fn handle_convert_basis(
     out_fmt: Option<String>,
     make_gen: bool,
 ) -> Result<String, BseError> {
+    // Check if paths are directories
+    let input_is_dir = input_file.is_dir();
+    let output_is_dir = output_file.is_dir();
+
     // Detect formats from file extensions if not specified
-    let resolved_in_fmt = in_fmt.or_else(|| detect_format_from_extension(&input_file.to_string_lossy(), true));
-    let resolved_out_fmt = out_fmt.or_else(|| detect_format_from_extension(&output_file.to_string_lossy(), false));
+    let resolved_in_fmt = in_fmt.or_else(|| {
+        if input_is_dir {
+            Some("dir-json".to_string())
+        } else {
+            detect_format_from_extension(&input_file.to_string_lossy(), true)
+        }
+    });
+    let resolved_out_fmt = out_fmt.or_else(|| {
+        if output_is_dir {
+            Some("dir-json".to_string())
+        } else {
+            detect_format_from_extension(&output_file.to_string_lossy(), false)
+        }
+    });
 
     if resolved_in_fmt.is_none() {
         return bse_raise!(
@@ -321,9 +353,86 @@ pub fn handle_convert_basis(
         );
     }
 
-    // Read the input file
+    let in_fmt_resolved = resolved_in_fmt.unwrap();
+    let out_fmt_resolved = resolved_out_fmt.unwrap();
+
+    // Handle directory formats
+    let input_dir_mode = is_dir_format(&in_fmt_resolved) || input_is_dir;
+    let output_dir_mode = is_dir_format(&out_fmt_resolved) || output_is_dir;
+
+    if input_dir_mode && output_dir_mode {
+        // Directory to directory conversion
+        let underlying_in_fmt = strip_dir_prefix(&in_fmt_resolved);
+        let underlying_out_fmt = strip_dir_prefix(&out_fmt_resolved);
+
+        let mut basis = read_basis_from_dir(&input_file, underlying_in_fmt);
+
+        // Apply make_general if requested
+        if make_gen {
+            let mut full_basis = BseBasis::from_minimal(basis);
+            crate::manip::make_general(&mut full_basis, false);
+            crate::manip::prune_basis(&mut full_basis);
+            basis = BseBasisMinimal {
+                molssi_bse_schema: full_basis.molssi_bse_schema,
+                elements: full_basis.elements,
+                function_types: full_basis.function_types,
+                name: full_basis.name,
+                description: full_basis.description,
+            };
+        }
+
+        write_basis_to_dir_f(&BseBasis::from_minimal(basis), &output_file, underlying_out_fmt)?;
+
+        return Ok(format!("Converted {} -> {}", input_file.display(), output_file.display()));
+    }
+
+    if input_dir_mode {
+        // Directory to file conversion
+        let underlying_in_fmt = strip_dir_prefix(&in_fmt_resolved);
+        let mut basis = read_basis_from_dir(&input_file, underlying_in_fmt);
+
+        if make_gen {
+            let mut full_basis = BseBasis::from_minimal(basis);
+            crate::manip::make_general(&mut full_basis, false);
+            crate::manip::prune_basis(&mut full_basis);
+            basis = BseBasisMinimal {
+                molssi_bse_schema: full_basis.molssi_bse_schema,
+                elements: full_basis.elements,
+                function_types: full_basis.function_types,
+                name: full_basis.name,
+                description: full_basis.description,
+            };
+        }
+
+        let full_basis = BseBasis::from_minimal(basis);
+        let output_str = write_formatted_basis_str(&full_basis, &out_fmt_resolved, None);
+        std::fs::write(&output_file, output_str)?;
+
+        return Ok(format!("Converted {} -> {}", input_file.display(), output_file.display()));
+    }
+
+    if output_dir_mode {
+        // File to directory conversion
+        let underlying_out_fmt = strip_dir_prefix(&out_fmt_resolved);
+
+        let input_str = std::fs::read_to_string(&input_file)?;
+        let basis_minimal = read_formatted_basis_str(&input_str, &in_fmt_resolved);
+
+        let mut basis = BseBasis::from_minimal(basis_minimal);
+
+        if make_gen {
+            crate::manip::make_general(&mut basis, false);
+            crate::manip::prune_basis(&mut basis);
+        }
+
+        write_basis_to_dir_f(&basis, &output_file, underlying_out_fmt)?;
+
+        return Ok(format!("Converted {} -> {}", input_file.display(), output_file.display()));
+    }
+
+    // Standard file to file conversion
     let input_str = std::fs::read_to_string(&input_file)?;
-    let basis_minimal = read_formatted_basis_str(&input_str, &resolved_in_fmt.unwrap());
+    let basis_minimal = read_formatted_basis_str(&input_str, &in_fmt_resolved);
 
     // Convert to full BseBasis for manipulation
     let mut basis = BseBasis::from_minimal(basis_minimal);
@@ -335,7 +444,7 @@ pub fn handle_convert_basis(
     }
 
     // Write the output
-    let output_str = write_formatted_basis_str(&basis, &resolved_out_fmt.unwrap(), None);
+    let output_str = write_formatted_basis_str(&basis, &out_fmt_resolved, None);
     std::fs::write(&output_file, output_str)?;
 
     Ok(format!("Converted {} -> {}", input_file.display(), output_file.display()))

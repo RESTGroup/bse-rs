@@ -21,9 +21,10 @@
 /// # Example
 ///
 /// ```
+/// use bse::cli::common::format_columns;
 /// let lines = vec![
-///     ("nwchem", "NWChem format"),
-///     ("gaussian94", "Gaussian format"),
+///     vec!["nwchem", "NWChem format"],
+///     vec!["gaussian94", "Gaussian format"],
 /// ];
 /// let formatted = format_columns(&lines, "");
 /// // Returns:

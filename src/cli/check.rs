@@ -1,6 +1,14 @@
 //! Argument validation for CLI.
 //!
-//! This module provides utilities for detecting formats from file extensions.
+//! This module provides utilities for detecting formats from file extensions
+//! and checking if paths are directories.
+
+use std::path::Path;
+
+/// Check if a path is a directory.
+pub fn is_directory_path(path: &Path) -> bool {
+    path.is_dir()
+}
 
 /// Detect format from file extension.
 ///

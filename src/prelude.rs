@@ -62,6 +62,8 @@ pub use crate::api::{
     get_references_formatted_f, get_roles, has_basis_notes, has_basis_notes_f, has_family_notes, has_family_notes_f,
     lookup_basis_by_role, lookup_basis_by_role_f, BseFilterArgs, BseFilterArgsBuilder,
 };
+pub use crate::dir_reader::{read_basis_from_dir, read_basis_from_dir_f};
+pub use crate::dir_writer::{write_basis_to_dir, write_basis_to_dir_f};
 pub use crate::fields::{
     BseAuxiliary, BseBasis, BseBasisElement, BseBasisMinimal, BseBasisReference, BseEcpElement, BseEcpPotential,
     BseElectronShell, BseElementComponents, BseElementReferences, BseGtoElement, BseMolssiBseSchema, BseReferenceEntry,
@@ -73,7 +75,8 @@ pub use crate::readers::read::{get_reader_formats, read_formatted_basis_str, rea
 pub use crate::refconverters::{convert_references, get_reference_format_extension};
 pub use crate::references::compact_references;
 pub use crate::writers::write::{
-    get_format_extension, get_writer_formats, write_formatted_basis_str, write_formatted_basis_str_f,
+    get_format_extension, get_writer_formats, is_dir_format, strip_dir_prefix, write_formatted_basis_str,
+    write_formatted_basis_str_f,
 };
 
 #[cfg(feature = "remote")]
