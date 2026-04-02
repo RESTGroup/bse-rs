@@ -28,11 +28,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Output a list of basis set formats that can be used with obtaining a
-    /// basis set
-    ListFormats(ListFormatsArgs),
-
-    /// Output a list of available basis set formats that can be written
+    /// Output a list of basis set formats that can be written
     ListWriterFormats(ListFormatsArgs),
 
     /// Output a list of basis set formats that can be read
@@ -452,7 +448,6 @@ fn main() {
     // Handle the command and get output
     let result = match cli.command {
         // Simple listings
-        Commands::ListFormats(args) => handle_list_formats(args.no_description),
         Commands::ListWriterFormats(args) => handle_list_writer_formats(args.no_description),
         Commands::ListReaderFormats(args) => handle_list_reader_formats(args.no_description),
         Commands::ListRefFormats(args) => handle_list_ref_formats(args.no_description),

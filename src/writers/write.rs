@@ -383,12 +383,51 @@ lazy_static::lazy_static! {
         }
         map
     };
+
+    // Extension -> format name map for auto-detection.
+    // Some extensions are shared (e.g., .gbs, .json, .molcas, .bas).
+    // For shared extensions, the first format encountered is used.
+    static ref WRITER_EXTENSION_MAP: HashMap<String, &'static str> = {
+        let mut map = HashMap::new();
+        for entry in WRITER_ENTRIES.iter() {
+            let ext = entry.extension.trim_start_matches('.').to_lowercase();
+            // Only insert if not already present (keep first entry for shared extensions)
+            map.entry(ext).or_insert(entry.name);
+        }
+        map
+    };
 }
 
 /// Get writer entry by format name (canonical or alias).
 fn get_writer_entry(fmt: &str) -> Option<&WriterEntry> {
     let fmt_lower = fmt.to_lowercase();
     WRITER_MAP.get(&fmt_lower).map(|idx| &WRITER_ENTRIES[*idx])
+}
+
+/// Get writer format by file extension.
+///
+/// Returns the canonical format name for a given file extension.
+/// For shared extensions (e.g., .gbs, .json), the first format encountered
+/// in WRITER_ENTRIES is returned.
+///
+/// # Arguments
+///
+/// * `ext` - The file extension (without leading dot, case insensitive)
+///
+/// # Returns
+///
+/// `Some(format_name)` if the extension is recognized, `None` otherwise.
+///
+/// # Example
+///
+/// ```
+/// use bse::prelude::*;
+/// assert_eq!(get_writer_format_by_extension("nw"), Some("nwchem"));
+/// assert_eq!(get_writer_format_by_extension("gbs"), Some("gaussian94"));
+/// ```
+pub fn get_writer_format_by_extension(ext: &str) -> Option<&'static str> {
+    let ext_lower = ext.to_lowercase();
+    WRITER_EXTENSION_MAP.get(&ext_lower).copied()
 }
 
 /// Get writer format information for a given format name.

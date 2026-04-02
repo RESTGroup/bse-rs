@@ -9,21 +9,7 @@ use crate::prelude::*;
 use crate::{bse_raise, misc::compact_elements, BseError};
 
 use super::check::detect_format_from_extension;
-use super::common::{format_columns, format_map_columns};
-
-/// Handle the `list-formats` subcommand.
-///
-/// Lists all basis set formats available for output (writer formats).
-pub fn handle_list_formats(no_description: bool) -> Result<String, BseError> {
-    let formats = get_formats(None);
-
-    if no_description {
-        Ok(formats.keys().cloned().collect::<Vec<_>>().join("\n").to_string())
-    } else {
-        let items: Vec<(String, String)> = formats.into_iter().collect();
-        Ok(format_map_columns(&items, "").join("\n"))
-    }
-}
+use super::common::{format_columns, format_map_columns, format_table};
 
 /// Handle the `list-writer-formats` subcommand.
 pub fn handle_list_writer_formats(no_description: bool) -> Result<String, BseError> {
@@ -36,18 +22,13 @@ pub fn handle_list_writer_formats(no_description: bool) -> Result<String, BseErr
             .collect();
         Ok(names.join("\n"))
     } else {
-        // Format: name (aliases) - display
-        let items: Vec<Vec<String>> = formats
+        // Format as table: name | aliases | display
+        let headers = ["Name", "Aliases", "Display"];
+        let rows: Vec<Vec<String>> = formats
             .iter()
-            .map(|(name, (display, aliases))| {
-                if aliases.is_empty() {
-                    vec![name.clone(), display.clone()]
-                } else {
-                    vec![format!("{} ({})", name, aliases.join(", ")), display.clone()]
-                }
-            })
+            .map(|(name, (display, aliases))| vec![name.clone(), aliases.join(", "), display.clone()])
             .collect();
-        Ok(format_columns(&items, "").join("\n"))
+        Ok(format_table(&headers, &rows).join("\n"))
     }
 }
 
@@ -62,18 +43,13 @@ pub fn handle_list_reader_formats(no_description: bool) -> Result<String, BseErr
             .collect();
         Ok(names.join("\n"))
     } else {
-        // Format: name (aliases) - display
-        let items: Vec<Vec<String>> = formats
+        // Format as table: name | aliases | display
+        let headers = ["Name", "Aliases", "Display"];
+        let rows: Vec<Vec<String>> = formats
             .iter()
-            .map(|(name, (display, aliases))| {
-                if aliases.is_empty() {
-                    vec![name.clone(), display.clone()]
-                } else {
-                    vec![format!("{} ({})", name, aliases.join(", ")), display.clone()]
-                }
-            })
+            .map(|(name, (display, aliases))| vec![name.clone(), aliases.join(", "), display.clone()])
             .collect();
-        Ok(format_columns(&items, "").join("\n"))
+        Ok(format_table(&headers, &rows).join("\n"))
     }
 }
 

@@ -83,3 +83,100 @@ pub fn format_map_columns<K: AsRef<str>, V: AsRef<str>>(items: &[(K, V)], prefix
         items.iter().map(|(k, v)| vec![k.as_ref().to_string(), v.as_ref().to_string()]).collect();
     format_columns(&lines, prefix)
 }
+
+/// Format data as a bordered table with headers.
+///
+/// Creates a table with borders using Unicode box-drawing characters:
+/// - `│` for vertical separators
+/// - `─` for horizontal separators
+/// - `┌`, `┐`, `└`, `┘` for corners
+/// - `├`, `┤`, `┬`, `┴`, `┼` for intersections
+///
+/// # Arguments
+///
+/// * `headers` - Column headers
+/// * `rows` - Table data, each row is a vec of strings
+///
+/// # Returns
+///
+/// A vector of formatted strings representing the table.
+///
+/// # Example
+///
+/// ```
+/// use bse::cli::common::format_table;
+/// let headers = vec!["Name", "Aliases", "Display"];
+/// let rows = vec![
+///     vec!["nwchem".to_string(), "nw".to_string(), "NWChem".to_string()],
+///     vec!["gaussian94".to_string(), "g94, gbs".to_string(), "Gaussian".to_string()],
+/// ];
+/// let table = format_table(&headers, &rows);
+/// // Returns bordered table with aligned columns
+/// ```
+pub fn format_table<S: AsRef<str>>(headers: &[S], rows: &[Vec<String>]) -> Vec<String> {
+    if headers.is_empty() {
+        return Vec::new();
+    }
+
+    let ncols = headers.len();
+
+    // Calculate column widths (max of header and all rows)
+    let col_widths: Vec<usize> = (0..ncols)
+        .map(|c| {
+            let header_width = headers[c].as_ref().len();
+            let row_width = rows.iter().map(|r| r.get(c).map(|s| s.len()).unwrap_or(0)).max().unwrap_or(0);
+            std::cmp::max(header_width, row_width)
+        })
+        .collect();
+
+    // Helper to create horizontal separator
+    let make_separator = |left: &str, _mid: &str, right: &str, cross: &str| -> String {
+        let mut parts: Vec<String> = Vec::new();
+        parts.push(left.to_string());
+        for (i, w) in col_widths.iter().enumerate() {
+            parts.push("─".repeat(*w + 2)); // +2 for padding
+            if i < ncols - 1 {
+                parts.push(cross.to_string());
+            }
+        }
+        parts.push(right.to_string());
+        parts.join("")
+    };
+
+    let mut result = Vec::new();
+
+    // Top border
+    result.push(make_separator("┌", "─", "┐", "┬"));
+
+    // Header row
+    let mut header_parts: Vec<String> = Vec::new();
+    header_parts.push("│".to_string());
+    for (c, h) in headers.iter().enumerate() {
+        let width = col_widths[c];
+        header_parts.push(format!(" {:width$} ", h.as_ref(), width = width));
+        header_parts.push("│".to_string());
+    }
+    result.push(header_parts.join(""));
+
+    // Header/body separator
+    result.push(make_separator("├", "─", "┤", "┼"));
+
+    // Data rows
+    for row in rows {
+        let mut row_parts: Vec<String> = Vec::new();
+        row_parts.push("│".to_string());
+        for (c, val) in row.iter().enumerate() {
+            let width = col_widths.get(c).copied().unwrap_or(0);
+            // If value is longer than width (shouldn't happen), truncate
+            let display_val = if val.len() > width { &val[..width] } else { val.as_str() };
+            row_parts.push(format!(" {:width$} ", display_val, width = width));
+            row_parts.push("│".to_string());
+        }
+        result.push(row_parts.join(""));
+    }
+
+    // Bottom border
+    result.push(make_separator("└", "─", "┘", "┴"));
+
+    result
+}

@@ -148,12 +148,12 @@ const READER_ENTRIES: &[ReaderEntry] = &[
         names: &["demon2k", "dmon"],
         function: readers::demon2k::read_demon2k,
     },
-    // veloxchem - unique extension .vx
+    // veloxchem - unique extension .vlx
     ReaderEntry {
         name: "veloxchem",
         display: "VeloxChem",
-        extension: ".vx",
-        names: &["veloxchem", "vx"],
+        extension: ".vlx",
+        names: &["veloxchem", "vlx"],
         function: readers::veloxchem::read_veloxchem,
     },
     // ricdlib - unique extension .ricd
@@ -186,12 +186,48 @@ lazy_static::lazy_static! {
         }
         map
     };
+
+    // Extension -> format name map for auto-detection.
+    // Extensions are unique for readers, so this is straightforward.
+    static ref READER_EXTENSION_MAP: HashMap<String, &'static str> = {
+        let mut map = HashMap::new();
+        for entry in READER_ENTRIES.iter() {
+            let ext = entry.extension.trim_start_matches('.').to_lowercase();
+            map.insert(ext, entry.name);
+        }
+        map
+    };
 }
 
 /// Get reader entry by format name (canonical or alias).
 fn get_reader_entry(fmt: &str) -> Option<&ReaderEntry> {
     let fmt_lower = fmt.to_lowercase();
     READER_MAP.get(&fmt_lower).map(|idx| &READER_ENTRIES[*idx])
+}
+
+/// Get reader format by file extension.
+///
+/// Returns the canonical format name for a given file extension.
+/// For readers, all extensions are unique.
+///
+/// # Arguments
+///
+/// * `ext` - The file extension (without leading dot, case insensitive)
+///
+/// # Returns
+///
+/// `Some(format_name)` if the extension is recognized, `None` otherwise.
+///
+/// # Example
+///
+/// ```
+/// use bse::prelude::*;
+/// assert_eq!(get_reader_format_by_extension("nw"), Some("nwchem"));
+/// assert_eq!(get_reader_format_by_extension("gbs"), Some("gaussian94"));
+/// ```
+pub fn get_reader_format_by_extension(ext: &str) -> Option<&'static str> {
+    let ext_lower = ext.to_lowercase();
+    READER_EXTENSION_MAP.get(&ext_lower).copied()
 }
 
 /// Get reader format information for a given format name.

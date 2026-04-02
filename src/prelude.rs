@@ -72,14 +72,15 @@ pub use crate::fields::{
 };
 pub use crate::notes::process_notes;
 pub use crate::readers::read::{
-    get_reader_formats, get_reader_formats_with_aliases, get_reader_info, read_formatted_basis_str,
-    read_formatted_basis_str_f, ReaderInfo,
+    get_reader_format_by_extension, get_reader_formats, get_reader_formats_with_aliases, get_reader_info,
+    read_formatted_basis_str, read_formatted_basis_str_f, ReaderInfo,
 };
 pub use crate::refconverters::{convert_references, get_reference_format_extension};
 pub use crate::references::compact_references;
 pub use crate::writers::write::{
-    get_format_extension, get_writer_formats, get_writer_formats_with_aliases, get_writer_info, is_dir_format,
-    strip_dir_prefix, write_formatted_basis_str, write_formatted_basis_str_f, WriterInfo,
+    get_format_extension, get_writer_format_by_extension, get_writer_formats, get_writer_formats_with_aliases,
+    get_writer_info, is_dir_format, strip_dir_prefix, write_formatted_basis_str, write_formatted_basis_str_f,
+    WriterInfo,
 };
 
 #[cfg(feature = "remote")]
