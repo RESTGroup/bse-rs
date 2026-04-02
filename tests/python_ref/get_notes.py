@@ -1,6 +1,8 @@
 import basis_set_exchange as bse
 import os
 
+assert bse.__version__ == "0.12"
+
 out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'get_notes')
 os.makedirs(out_dir, exist_ok=True)
 

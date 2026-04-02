@@ -8,7 +8,6 @@ pub fn write_dalton(basis: &BseBasis) -> String {
 
     let mut basis = basis.clone();
     manip::make_general(&mut basis, false);
-    manip::prune_basis(&mut basis);
     sort::sort_basis(&mut basis);
 
     // Elements for which we have electron basis

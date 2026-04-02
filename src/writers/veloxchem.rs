@@ -7,10 +7,9 @@ pub fn write_veloxchem(basis: &BseBasis) -> String {
     let mut s = vec![format!("@BASIS_SET {}", basis.name)];
 
     let mut basis = basis.clone();
-    manip::optimize_general(&mut basis);
     manip::uncontract_general(&mut basis);
     manip::uncontract_spdf(&mut basis, 0);
-    manip::prune_basis(&mut basis);
+    sort::sort_basis(&mut basis);
 
     // Elements for which we have electron basis
     let electron_elements =

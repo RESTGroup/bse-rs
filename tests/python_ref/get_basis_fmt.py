@@ -2,7 +2,7 @@ import basis_set_exchange as bse
 import json
 import os
 
-assert bse.__version__ == "0.11"
+assert bse.__version__ == "0.12"
 
 # ## get_basis_fmt
 

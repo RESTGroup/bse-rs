@@ -28,7 +28,6 @@ pub fn write_libmol(basis: &BseBasis) -> String {
     // Uncontract all, and make as generally-contracted as possible
     let mut basis = basis.clone();
     manip::make_general(&mut basis, false);
-    manip::prune_basis(&mut basis);
     sort::sort_basis(&mut basis);
 
     // Start out with angular momentum type

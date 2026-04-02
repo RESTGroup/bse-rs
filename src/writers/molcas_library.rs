@@ -139,7 +139,6 @@ fn format_reference(ref_key: Option<&str>, ref_data: &HashMap<String, BseReferen
 pub fn write_molcas_library(basis: &BseBasis) -> String {
     let mut basis = basis.clone();
     manip::make_general(&mut basis, false);
-    manip::prune_basis(&mut basis);
     sort::sort_basis(&mut basis);
 
     let mut s: Vec<String> = vec![];

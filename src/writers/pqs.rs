@@ -43,7 +43,6 @@ fn write_pqs_electron_basis(basis: &BseBasis, electron_elements: &[&String]) -> 
 pub fn write_pqs(basis: &BseBasis) -> String {
     let mut basis = basis.clone();
     manip::make_general(&mut basis, true);
-    manip::prune_basis(&mut basis);
     sort::sort_basis(&mut basis);
 
     let mut s = String::new();

@@ -153,7 +153,7 @@ pub fn handle_list_basis_sets(
     if no_description {
         // Simple list: just names, sorted by family then alphabetically
         let mut result = Vec::new();
-        for (_family, items) in &by_family {
+        for items in by_family.values() {
             for (name, _) in items {
                 result.push(name.clone());
             }
@@ -548,7 +548,6 @@ pub fn handle_convert_basis(
 
         if make_gen {
             crate::manip::make_general(&mut basis, false);
-            crate::manip::prune_basis(&mut basis);
         }
 
         write_basis_to_dir_f(&basis, &output_file, underlying_out_fmt)?;
@@ -566,7 +565,6 @@ pub fn handle_convert_basis(
     // Apply make_general if requested
     if make_gen {
         crate::manip::make_general(&mut basis, false);
-        crate::manip::prune_basis(&mut basis);
     }
 
     // Write the output

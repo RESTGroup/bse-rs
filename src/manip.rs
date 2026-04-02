@@ -206,6 +206,7 @@ pub fn uncontract_spdf(basis: &mut BseBasis, max_am: i32) {
 ///
 /// General contractions have multiple coefficient vectors for the same
 /// set of exponents. This function splits them into separate shells.
+/// Shells with all-zero coefficients are removed via [`prune_basis`].
 ///
 /// # Arguments
 ///
@@ -214,7 +215,7 @@ pub fn uncontract_spdf(basis: &mut BseBasis, max_am: i32) {
 /// # Note
 ///
 /// Combined shells (sp, spd, etc.) are not affected. Use [`uncontract_spdf`]
-/// for those. The resulting basis may have duplicate shells.
+/// for those.
 pub fn uncontract_general(basis: &mut BseBasis) {
     for (_, el) in basis.elements.iter_mut() {
         let Some(ref mut electron_shells) = el.electron_shells else {
@@ -241,6 +242,8 @@ pub fn uncontract_general(basis: &mut BseBasis) {
 
         *electron_shells = new_shells;
     }
+
+    prune_basis(basis);
 }
 
 /// Fully uncontract a basis set to individual primitives.

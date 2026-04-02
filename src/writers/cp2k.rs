@@ -5,7 +5,6 @@ use crate::prelude::*;
 /// Converts a basis set to cp2k format
 pub fn write_cp2k(basis: &BseBasis) -> String {
     let mut basis = basis.clone();
-    manip::prune_basis(&mut basis);
     sort::sort_basis(&mut basis);
 
     let mut s: Vec<String> = vec![];

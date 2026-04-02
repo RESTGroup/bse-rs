@@ -100,7 +100,6 @@ pub(crate) fn write_gamess_us_common(basis: &BseBasis, ecp_func: impl Fn(&BseBas
     let mut basis = basis.clone();
     manip::uncontract_general(&mut basis);
     manip::uncontract_spdf(&mut basis, 1);
-    manip::prune_basis(&mut basis);
     sort::sort_basis(&mut basis);
 
     // Elements for which we have electron basis

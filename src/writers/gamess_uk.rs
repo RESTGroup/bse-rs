@@ -8,7 +8,6 @@ pub fn write_gamess_uk(basis: &BseBasis) -> String {
     // Uncontract all but SP
     manip::uncontract_general(&mut basis);
     manip::uncontract_spdf(&mut basis, 1);
-    manip::prune_basis(&mut basis);
     sort::sort_basis(&mut basis);
 
     let mut s: Vec<String> = vec![];

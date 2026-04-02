@@ -17,7 +17,6 @@ pub fn write_demon2k(basis: &BseBasis) -> String {
     // Uncontract basis
     manip::uncontract_spdf(&mut basis, 0);
     manip::uncontract_general(&mut basis);
-    manip::prune_basis(&mut basis);
     sort::sort_basis(&mut basis);
 
     // Elements for which we have electron basis
