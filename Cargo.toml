@@ -6,8 +6,8 @@ rust-version = "1.82.0"
 description = "Basis Set Exchange (BSE) library in Rust for quantum chemistry applications."
 license = "Apache-2.0"
 repository = "https://github.com/RESTGroup/bse-rs"
-keywords = ["quantum chemistry", "basis sets", "computational chemistry", "rust"]
-categories = ["science", "chemistry", "libraries"]
+keywords = ["chemistry", "quantum"]
+categories = ["science"]
 
 [lib]
 crate-type = ["rlib", "cdylib"]
