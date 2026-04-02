@@ -86,7 +86,9 @@ cfgs = [
     ("bsejson"       , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "json"}),
     ("bsejson"       , "def2-ECP"   , {"elements": "49-51"     , "fmt": "json"}),
     ("bsejson"       , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "json"}),
-    ("ricdwrap"      , "cc-pVTZ"    , {"elements": "1-3"       , "fmt": "ricdwrap"}),
+    ("ricdwrap"      , "cc-pVTZ"    , {"elements": "1, 6-O"    , "fmt": "ricdwrap"}),
+    ("ricdwrap"      , "def2-ECP"   , {"elements": "49-51"     , "fmt": "ricdwrap"}),
+    ("ricdwrap"      , "def2-TZVPD" , {"elements": "1-3, 49-51", "fmt": "ricdwrap"}),
 ]
 
 # # %%time

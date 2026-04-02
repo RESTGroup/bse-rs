@@ -110,7 +110,7 @@ mod test {
     #[case("bsedebug"      , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
     #[case("bsedebug"      , "def2-ECP"  , ["elements = '49-51'"     ].join("\n"))]
     #[case("bsedebug"      , "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
-    #[case("ricdwrap"      , "cc-pVTZ"   , ["elements = '1-3'"       ].join("\n"))]
+    #[case("ricdwrap"      , "cc-pVTZ"   , ["elements = '1, 6-O'"    ].join("\n"))]
     #[case("ricdwrap"      , "def2-ECP"  , ["elements = '49-51'"     ].join("\n"))]
     #[case("ricdwrap"      , "def2-TZVPD", ["elements = '1-3, 49-51'"].join("\n"))]
     fn test_get_formatted_basis(#[case] fmt: &str, #[case] basis: &str, #[case] args: String) {
