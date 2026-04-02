@@ -631,8 +631,8 @@ pub fn prune_lines(lines: &[String], skipchars: &str, prune_blank: bool, strip_e
 ///   insensitive)
 ///
 /// # Returns
-/// (Vec<String>, Vec<String>) - The block found (may be empty), the input lines
-/// without the block
+/// `(Vec<String>, Vec<String>)` - The block found (may be empty), the input
+/// lines without the block
 pub fn remove_block(
     lines: &[String],
     start_re: &Regex,

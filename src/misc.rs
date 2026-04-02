@@ -78,7 +78,7 @@ pub fn max_am(electron_shells: &[BseElectronShell]) -> i32 {
 
 /// Form a string describing the contractions for an element.
 ///
-/// Creates a human-readable description like "(16s,10p) -> [4s,3p]" or
+/// Creates a human-readable description like "(16s,10p) -> \[4s,3p\]" or
 /// the compact form "16s10p.4s3p".
 ///
 /// # Arguments

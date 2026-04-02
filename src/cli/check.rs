@@ -29,7 +29,7 @@ pub fn detect_format_from_extension(filename: &str, is_reader: bool) -> Option<S
 /// Detect format from file extensions inside a directory.
 ///
 /// Reads the directory contents and looks at file extensions to infer
-/// the underlying format. Returns "dir-<format>" if a consistent format
+/// the underlying format. Returns "dir-`<format>`" if a consistent format
 /// is found across all recognized files.
 ///
 /// # Arguments

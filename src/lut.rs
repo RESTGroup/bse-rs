@@ -103,7 +103,7 @@ pub fn element_Z_from_str(s: &str) -> Option<i32> {
 /// The input is a list (to handle sp, spd, ... orbitals). The return value is a
 /// string.
 ///
-/// For example, converts [0] to 's' and [0,1,2] to 'spd'.
+/// For example, converts \[0\] to 's' and \[0,1,2\] to 'spd'.
 ///
 /// If hij is True, the ordering spdfghijkl is used. Otherwise, the ordering
 /// will be spdfghikl (skipping j).
@@ -118,8 +118,8 @@ pub fn amint_to_char(am: &[i32], hij: bool) -> String {
 
 /// Convert an angular momentum integer to a character.
 ///
-/// For case of sp shells ([0,1]), it returns 'l' instead of 'sp'. Otherwise, it
-/// uses the `amint_to_char` function.
+/// For case of sp shells (\[0,1\]), it returns 'l' instead of 'sp'. Otherwise,
+/// it uses the `amint_to_char` function.
 ///
 /// This convention happens to GAMESS and PQS.
 #[inline]
@@ -135,7 +135,7 @@ pub fn amint_to_char_use_L(am: &[i32], hij: bool) -> String {
 ///
 /// The return value is a list of integers (to handle sp, spd, ... orbitals).
 ///
-/// For example, converts 'p' to [1] and 'sp' to [0,1].
+/// For example, converts 'p' to \[1\] and 'sp' to \[0,1\].
 ///
 /// If hij is True, the ordering spdfghijkl is used. Otherwise, the ordering
 /// will be spdfghikl (skipping j).

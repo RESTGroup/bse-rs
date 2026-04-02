@@ -15,7 +15,7 @@ use std::collections::HashMap;
 /// # Arguments
 ///
 /// * `notes` - The raw notes content
-/// * `ref_data` - All reference data from [`get_reference_data`]
+/// * `ref_data` - All reference data from [`crate::api::get_reference_data`]
 ///
 /// # Returns
 ///

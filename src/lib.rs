@@ -50,7 +50,7 @@
 //! export BSE_DATA_DIR=/path/to/basis_set_exchange/basis_set_exchange/data
 //! ```
 //!
-//! Alternatively, call [`specify_bse_data_dir`][api::specify_bse_data_dir]
+//! Alternatively, call [`specify_bse_data_dir`]
 //! at runtime, or the library will attempt auto-detection.
 //!
 //! ### BSE_REMOTE

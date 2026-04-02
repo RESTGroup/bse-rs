@@ -145,7 +145,7 @@ fn gto_R(exps: &[f64], l: i32) -> Vec<Vec<f64>> {
     rmat
 }
 
-/// Compute the <r> matrix for contracted GTOs.
+/// Compute the `<r>` matrix for contracted GTOs.
 ///
 /// Computes the radial moment matrix in the contracted basis with proper
 /// normalization. Used for determining spatial extent of basis functions.

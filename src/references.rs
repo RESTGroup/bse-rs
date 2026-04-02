@@ -15,8 +15,9 @@ use std::collections::HashMap;
 ///
 /// # Arguments
 ///
-/// * `basis_dict` - Complete basis set information (from [`get_basis`])
-/// * `ref_data` - All reference data from [`get_reference_data`]
+/// * `basis_dict` - Complete basis set information (from
+///   [`crate::api::get_basis`])
+/// * `ref_data` - All reference data from [`crate::api::get_reference_data`]
 ///
 /// # Returns
 ///

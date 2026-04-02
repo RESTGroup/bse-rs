@@ -275,7 +275,7 @@ pub struct BseBasisElement {
 
 /// Complete basis set information.
 ///
-/// The main data structure returned by [`get_basis`][crate::api::get_basis],
+/// The main data structure returned by [`get_basis`],
 /// containing all elements, shells, and metadata for a basis set.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct BseBasis {
@@ -312,7 +312,7 @@ pub struct BseBasis {
 /// Minimal basis set information for reader output.
 ///
 /// Returned by
-/// [`read_formatted_basis_str`][crate::readers::read::read_formatted_basis_str],
+/// [`read_formatted_basis_str`],
 /// containing parsed basis set data without full metadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct BseBasisMinimal {
