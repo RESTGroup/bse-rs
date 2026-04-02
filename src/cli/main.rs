@@ -2,16 +2,10 @@
 //!
 //! This CLI is functionally equivalent to the Python BSE CLI.
 
-use std::path::PathBuf;
-
+use bse::cli::handlers::*;
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::Shell;
-
-mod check;
-mod common;
-mod handlers;
-
-use crate::handlers::*;
+use std::path::PathBuf;
 
 /// Basis Set Exchange CLI - retrieve, manipulate, and convert Gaussian-type
 /// orbital basis sets for computational chemistry.
@@ -354,23 +348,21 @@ fn get_completion_path(shell: Shell) -> Option<PathBuf> {
             let xdg = std::env::var("XDG_DATA_HOME").ok();
             let base = xdg.map(PathBuf::from).unwrap_or_else(|| home.join(".local/share"));
             Some(base.join("bash-completion/completions/bse-rs"))
-        }
+        },
         Shell::Zsh => {
             // Zsh uses ~/.zfunc/ or fpath
             Some(home.join(".zfunc/_bse-rs"))
-        }
+        },
         Shell::Fish => {
             // Fish uses ~/.config/fish/completions/
             Some(home.join(".config/fish/completions/bse-rs.fish"))
-        }
-        Shell::Elvish => {
-            Some(home.join(".local/share/elvish/lib/bse-rs.elv"))
-        }
+        },
+        Shell::Elvish => Some(home.join(".local/share/elvish/lib/bse-rs.elv")),
         Shell::PowerShell => {
             // PowerShell uses a scripts directory
             let profile = std::env::var("USERPROFILE").ok()?;
             Some(PathBuf::from(profile).join("Documents/PowerShell/bse-rs.ps1"))
-        }
+        },
         _ => None,
     }
 }
@@ -408,7 +400,7 @@ fn handle_completion(shell: Option<Shell>, install: bool) -> Result<String, bse:
                 ValueError,
                 "Could not auto-detect shell. Please specify a shell: bash, zsh, fish, powershell, elvish"
             );
-        }
+        },
     };
 
     if install {
@@ -417,7 +409,7 @@ fn handle_completion(shell: Option<Shell>, install: bool) -> Result<String, bse:
             Some(p) => p,
             None => {
                 return bse_raise!(ValueError, "Could not determine completion installation path for {:?}", shell);
-            }
+            },
         };
 
         // Create parent directories if needed
@@ -432,11 +424,7 @@ fn handle_completion(shell: Option<Shell>, install: bool) -> Result<String, bse:
 
         clap_complete::generate(shell, &mut Cli::command(), "bse-rs", &mut file);
 
-        Ok(format!(
-            "Completion installed to: {}\n\n{}",
-            path.display(),
-            get_completion_instructions(shell)
-        ))
+        Ok(format!("Completion installed to: {}\n\n{}", path.display(), get_completion_instructions(shell)))
     } else {
         // Just print completion to stdout
         clap_complete::generate(shell, &mut Cli::command(), "bse-rs", &mut std::io::stdout());

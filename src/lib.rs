@@ -60,6 +60,7 @@
 #![allow(clippy::needless_range_loop)]
 
 pub mod api;
+pub mod cli;
 pub mod compose;
 pub mod error;
 pub mod fields;

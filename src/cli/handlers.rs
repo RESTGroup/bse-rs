@@ -5,8 +5,8 @@
 
 use std::path::PathBuf;
 
-use bse::prelude::*;
-use bse::{bse_raise, misc::compact_elements, BseError};
+use crate::prelude::*;
+use crate::{bse_raise, misc::compact_elements, BseError};
 
 use super::check::detect_format_from_extension;
 use super::common::{format_columns, format_map_columns};
@@ -185,7 +185,7 @@ pub fn handle_get_info(basis: String, data_dir: Option<String>) -> Result<String
     }
 
     let metadata = get_metadata(&resolved_data_dir.unwrap());
-    let tr_name = bse::misc::transform_basis_name(&basis);
+    let tr_name = crate::misc::transform_basis_name(&basis);
 
     if !metadata.contains_key(&tr_name) {
         return bse_raise!(ValueError, "Basis set '{}' does not exist.", basis);
@@ -254,7 +254,7 @@ pub fn handle_get_family(basis: String, data_dir: Option<String>) -> Result<Stri
     }
 
     let metadata = get_metadata(&resolved_data_dir.unwrap());
-    let tr_name = bse::misc::transform_basis_name(&basis);
+    let tr_name = crate::misc::transform_basis_name(&basis);
 
     if !metadata.contains_key(&tr_name) {
         return bse_raise!(ValueError, "Basis set '{}' does not exist.", basis);
@@ -271,7 +271,7 @@ pub fn handle_get_versions(basis: String, data_dir: Option<String>, no_descripti
     }
 
     let metadata = get_metadata(&resolved_data_dir.unwrap());
-    let tr_name = bse::misc::transform_basis_name(&basis);
+    let tr_name = crate::misc::transform_basis_name(&basis);
 
     if !metadata.contains_key(&tr_name) {
         return bse_raise!(ValueError, "Basis set '{}' does not exist.", basis);
@@ -330,8 +330,8 @@ pub fn handle_convert_basis(
 
     // Apply make_general if requested
     if make_gen {
-        bse::manip::make_general(&mut basis, false);
-        bse::manip::prune_basis(&mut basis);
+        crate::manip::make_general(&mut basis, false);
+        crate::manip::prune_basis(&mut basis);
     }
 
     // Write the output
@@ -377,7 +377,7 @@ pub fn handle_autoaux_basis(
     let basis = BseBasis::from_minimal(basis_minimal);
 
     // Generate AutoAux basis
-    let autoaux = bse::manip::autoaux_basis(&basis);
+    let autoaux = crate::manip::autoaux_basis(&basis);
 
     // Write the output
     let output_str = write_formatted_basis_str(&autoaux, &resolved_out_fmt.unwrap(), None);
@@ -422,7 +422,7 @@ pub fn handle_autoabs_basis(
     let basis = BseBasis::from_minimal(basis_minimal);
 
     // Generate AutoABS basis
-    let autoabs = bse::manip::autoabs_basis(&basis, 1, 1.5);
+    let autoabs = crate::manip::autoabs_basis(&basis, 1, 1.5);
 
     // Write the output
     let output_str = write_formatted_basis_str(&autoabs, &resolved_out_fmt.unwrap(), None);
