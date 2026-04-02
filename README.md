@@ -7,7 +7,7 @@
 
 A Rust library and CLI tool for retrieving, manipulating, and converting Gaussian-type orbital (GTO) basis sets for computational chemistry. This is a complete reimplementation of the Python [Basis Set Exchange](https://github.com/MolSSI-BSE/basis_set_exchange/) library, providing full API compatibility, with some additional features.
 
-> BSE? As a programmer, I don't understand Bethe-Salpeter Equation very well.
+> *BSE? As a programmer, I don't understand Bethe-Salpeter Equation very well.*
 
 ## Overview
 
@@ -136,12 +136,6 @@ let args = BseGetBasisArgsBuilder::default().elements("H, O".to_string()).header
 let output = get_formatted_basis("sto-3g", "nwchem", args);
 println!("{}", output);
 
-// Read basis from file
-// assumes basis.nw exists and is in NWChem format
-let content = std::fs::read_to_string("basis.nw").unwrap();
-let basis_minimal = read_formatted_basis_str(&content, "nwchem");
-println!("Basis: {}", basis_minimal.name);
-
 // Apply manipulations
 let args = BseGetBasisArgsBuilder::default().uncontract_general(true).augment_diffuse(2).build().unwrap();
 let basis = get_basis("def2-SVP", args);
@@ -152,6 +146,14 @@ let basis = get_basis("jul-cc-pVTZ", BseGetBasisArgs::default());
 println!("Basis: {} ({})", basis.name, basis.family);
 let basis = get_basis("maug-cc-pVDZ", BseGetBasisArgs::default()); // Auto-selects jun for DZ
 println!("Basis: {} ({})", basis.name, basis.family);
+```
+
+```rust,ignore
+// Read basis from file
+// assumes basis.nw exists and is in NWChem format
+let content = std::fs::read_to_string("basis.nw").unwrap();
+let basis_minimal = read_formatted_basis_str(&content, "nwchem");
+println!("Basis: {}", basis_minimal.name);
 ```
 
 ## Features and Configuration
@@ -299,7 +301,7 @@ bse-rs --source auto get-basis cc-pVTZ nwchem
 
 Request calendar basis sets directly through the standard API:
 
-```rust
+```rust,ignore
 // All month prefixes supported
 get_basis("jul-cc-pVTZ", args);  // July - all diffuse
 get_basis("jun-cc-pVTZ", args);  // June - s,p diffuse
@@ -365,7 +367,7 @@ Full API documentation is available at [docs.rs/bse](https://docs.rs/bse).
 
 ## CLI Reference
 
-```
+```text
 Usage: bse-rs [OPTIONS] <COMMAND>
 
 Commands:
@@ -406,7 +408,7 @@ Options:
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE) for details.
+Apache License 2.0. See [LICENSE](https://github.com/RESTGroup/bse-rs/blob/master/LICENSE) for details.
 
 ## Acknowledgments
 

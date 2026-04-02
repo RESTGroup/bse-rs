@@ -1,7 +1,4 @@
-//! # Basis Set Exchange in Rust (bse-rs)
-//!
-//! 
-
+#![doc = include_str!("../README.md")]
 #![allow(non_snake_case)]
 #![allow(clippy::needless_range_loop)]
 
