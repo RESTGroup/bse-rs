@@ -108,7 +108,8 @@ pub fn handle_get_data_dir() -> Result<String, BseError> {
 /// Handle the `list-basis-sets` subcommand.
 ///
 /// Lists basis sets with optional filtering by family, role, substring, or
-/// elements.
+/// elements. Output is grouped by family and sorted alphabetically within
+/// each family. Basis sets without a family are shown at the end.
 pub fn handle_list_basis_sets(
     substr: Option<String>,
     family: Option<String>,
@@ -127,12 +128,61 @@ pub fn handle_list_basis_sets(
 
     let metadata = filter_basis_sets(args);
 
+    // Group by family, separating empty families
+    let mut by_family: std::collections::BTreeMap<String, Vec<(String, String)>> = std::collections::BTreeMap::new();
+    let mut no_family: Vec<(String, String)> = Vec::new();
+
+    for v in metadata.values() {
+        if v.family.is_empty() {
+            no_family.push((v.display_name.clone(), v.description.clone()));
+        } else {
+            by_family.entry(v.family.clone()).or_default().push((v.display_name.clone(), v.description.clone()));
+        }
+    }
+
+    // Sort within each family
+    for items in by_family.values_mut() {
+        items.sort_by(|a, b| a.0.cmp(&b.0));
+    }
+    no_family.sort_by(|a, b| a.0.cmp(&b.0));
+
     if no_description {
-        Ok(metadata.values().map(|v| v.display_name.clone()).collect::<Vec<_>>().join("\n"))
+        // Simple list: just names, sorted by family then alphabetically
+        let mut result = Vec::new();
+        for (_family, items) in &by_family {
+            for (name, _) in items {
+                result.push(name.clone());
+            }
+        }
+        for (name, _) in &no_family {
+            result.push(name.clone());
+        }
+        Ok(result.join("\n"))
     } else {
-        let items: Vec<(String, String)> =
-            metadata.into_values().map(|v| (v.display_name.clone(), v.description.clone())).collect();
-        Ok(format_map_columns(&items, "").join("\n"))
+        // Format as multi-table with borders
+        let mut result = Vec::new();
+
+        // Process families in order (BTreeMap is sorted)
+        for (family, items) in by_family {
+            result.push(format!("\n[{}]", family));
+            let headers = ["Name", "Description"];
+            let rows: Vec<Vec<String>> = items.into_iter().map(|(n, d)| vec![n, d]).collect();
+            result.extend(format_table(&headers, &rows));
+        }
+
+        // Add uncategorized at the end if any
+        if !no_family.is_empty() {
+            result.push("\n[uncategorized]".to_string());
+            let headers = ["Name", "Description"];
+            let rows: Vec<Vec<String>> = no_family.into_iter().map(|(n, d)| vec![n, d]).collect();
+            result.extend(format_table(&headers, &rows));
+        }
+
+        // Remove leading newline if present
+        if !result.is_empty() && result[0].starts_with('\n') {
+            result[0] = result[0][1..].to_string();
+        }
+        Ok(result.join("\n"))
     }
 }
 
