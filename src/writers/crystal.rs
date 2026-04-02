@@ -48,32 +48,52 @@ pub fn write_crystal(basis: &BseBasis) -> String {
             }
 
             let mut ecp_entries = Vec::new();
-            let mut num_terms = [0; 5];
+            let mut num_terms = Vec::new();
 
-            for am in 0..5 {
+            // Helper to add terms for a given angular momentum
+            let add_term = |am: i32| {
+                let mut n_terms = 0;
+                let mut entry = String::new();
                 for term in ecp_potentials.iter().filter(|k| k.angular_momentum[0] == am) {
                     let exps = &term.gaussian_exponents;
                     let coefs = &term.coefficients[0];
                     let rexp = &term.r_exponents;
 
                     for i in 0..exps.len() {
-                        ecp_entries.push(format!("{} {} {}", exps[i], coefs[i], rexp[i]));
-                        num_terms[am as usize] += 1;
+                        // r exponent in CRYSTAL format is the full one: it does NOT have the r^{-2}
+                        // prefactor as in other formats
+                        entry.push_str(&format!("{} {} {}\n", exps[i], coefs[i], rexp[i] - 2));
+                        n_terms += 1;
                     }
                 }
+                (entry, n_terms)
+            };
+
+            // The highest-am projector comes first
+            let (entry, n) = add_term(max_ecp_am);
+            ecp_entries.push(entry);
+            num_terms.push(n);
+
+            // Then lower angular momenta
+            for am in 0..max_ecp_am {
+                let (entry, n) = add_term(am);
+                ecp_entries.push(entry);
+                num_terms.push(n);
             }
 
-            // Number of scalar terms is 0: Hay-Wadt is not supported
-            let m = 0;
+            // Pad with zeros for remaining angular momenta (up to 4 total: s, p, d, f, g)
+            for _ in max_ecp_am..5 {
+                num_terms.push(0);
+            }
 
             // Print ECP header
             s.push("INPUT".to_string());
-            s.push(format!(
-                "{Zeff} {m} {} {} {} {} {}",
-                num_terms[0], num_terms[1], num_terms[2], num_terms[3], num_terms[4]
-            ));
+            let header = format!("{Zeff}").to_string() + &num_terms.iter().map(|t| format!(" {t}")).collect::<String>();
+            s.push(header);
             // Add ECP data
-            s.extend(ecp_entries);
+            for entry in ecp_entries {
+                s.push(entry.trim().to_string());
+            }
         }
 
         // Handle basis functions
