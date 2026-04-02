@@ -95,7 +95,7 @@ bse-rs completion bash --install
 
 ### Download Basis Data
 
-*Note that if remote access is allowed, the library will fetch data directly from <https://basissetexchange.org>. This is the default behavior if the `remote` feature is enabled. In this case, no local data is required.*
+*Note that if remote access is allowed, the library will fetch data directly from <https://basissetexchange.org>. In this case, no local data is required, but will be much slower.*
 
 If you have the Python BSE package installed, it will use that data. Be sure the `basis_set_exchange` Python package is installed and accessible in your environment.
 
