@@ -396,34 +396,6 @@ Options:
   -V, --version          Print version
 ```
 
-## Comparison with Python BSE
-
-| Feature | Python BSE | bse-rs |
-|---------|------------|--------|
-| Basis set retrieval | ✓ | ✓ |
-| Format conversion | ✓ | ✓ |
-| CLI tool | ✓ | ✓ (with completion) |
-| REST API access | ✓ | ✓ (optional) |
-| Truhlar calendar | Separate function | Integrated in get_basis |
-| Format auto-detection | Partial | Yes |
-| TOML configuration | No | Yes |
-
-## Testing
-
-```bash
-# Run all tests
-cargo test
-
-# Run specific test suite
-cargo test --test test_get_basis
-cargo test --test test_read_basis
-
-# Run with verbose output
-cargo test -- --nocapture
-```
-
-Tests compare output against Python BSE v0.11 reference files for compatibility verification.
-
 ## References
 
 - [MolSSI Basis Set Exchange](https://www.basissetexchange.org)
