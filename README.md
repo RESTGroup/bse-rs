@@ -410,9 +410,13 @@ Apache License 2.0. See [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-This project is a Rust reimplementation of the Python [Basis Set Exchange](https://github.com/MolSSI-BSE/basis_set_exchange/) library by MolSSI. The basis set data is provided by the Python BSE project.
+This project is a Rust reimplementation of the Python [Basis Set Exchange](https://github.com/MolSSI-BSE/basis_set_exchange/) library by MolSSI. Current implementation should comply [v0.12](https://github.com/MolSSI-BSE/basis_set_exchange/releases/tag/v0.12) of python's original.
+
+> Note that this is not officially affiliated with the MolSSI BSE project, but is an independent implementation in current status.
 
 This project is supported by [REST](https://gitee.com/restgroup/rest) (Rust-based Electronic Structure Toolkit).
+
+AI assistance is applied in code generation, documentation, and testing. Acknowledges to Claude Code and GLM-5. Deepseek is also used for early prototyping and development.
 
 ## Contributing
 
