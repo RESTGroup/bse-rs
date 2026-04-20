@@ -1,6 +1,6 @@
 [package]
 name = "bse"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.82.0"
 description = "Basis Set Exchange (BSE) library in Rust for quantum chemistry applications."
@@ -38,7 +38,7 @@ toml = { version = "0.8" }
 
 [features]
 default = ["remote"]
-remote = ["ureq"]
+remote = ["dep:ureq"]
 
 [dev-dependencies]
 assert-json-diff = { version = "2.0" }

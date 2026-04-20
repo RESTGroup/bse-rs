@@ -82,6 +82,7 @@ pub fn write_crystal(basis: &BseBasis) -> String {
             }
 
             // Pad with zeros for remaining angular momenta (up to 4 total: s, p, d, f, g)
+            #[allow(clippy::same_item_push)]
             for _ in max_ecp_am..5 {
                 num_terms.push(0);
             }
