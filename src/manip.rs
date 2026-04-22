@@ -113,6 +113,29 @@ pub fn prune_shell(shell: &BseElectronShell) -> BseElectronShell {
     }
 }
 
+/// Remove duplicate shells and zero coefficients from a basis set element.
+pub fn prune_basis_in_element(el: &mut BseBasisElement) {
+    let shells = match &mut el.electron_shells {
+        Some(shells) => shells,
+        None => return,
+    };
+
+    // Prune each shell
+    for shell in shells.iter_mut() {
+        *shell = prune_shell(shell);
+    }
+
+    // Remove duplicates
+    let mut unique_shells = Vec::new();
+    for shell in shells.drain(..) {
+        if !unique_shells.contains(&shell) {
+            unique_shells.push(shell);
+        }
+    }
+
+    *shells = unique_shells;
+}
+
 /// Remove duplicate shells and zero coefficients from a basis set.
 ///
 /// Applies [`prune_shell`] to each shell, then removes duplicate shells.
@@ -123,26 +146,49 @@ pub fn prune_shell(shell: &BseElectronShell) -> BseElectronShell {
 /// * `basis` - The basis set to prune (modified in place)
 pub fn prune_basis(basis: &mut BseBasis) {
     for (_, el) in basis.elements.iter_mut() {
-        let shells = match &mut el.electron_shells {
-            Some(shells) => shells,
-            None => continue,
-        };
-
-        // Prune each shell
-        for shell in shells.iter_mut() {
-            *shell = prune_shell(shell);
-        }
-
-        // Remove duplicates
-        let mut unique_shells = Vec::new();
-        for shell in shells.drain(..) {
-            if !unique_shells.contains(&shell) {
-                unique_shells.push(shell);
-            }
-        }
-
-        *shells = unique_shells;
+        prune_basis_in_element(el);
     }
+}
+
+/// Split combined shells (sp, spd, spdf) into separate shells for an element.
+pub fn uncontract_spdf_in_element(el: &mut BseBasisElement, max_am: i32) {
+    let Some(electron_shells) = &mut el.electron_shells else {
+        return;
+    };
+
+    let mut newshells = Vec::new();
+
+    for sh in electron_shells.iter() {
+        // am will be a list
+        let am = &sh.angular_momentum;
+        let coeff = &sh.coefficients;
+
+        // if this is an sp, spd,... orbital
+        if am.len() > 1 {
+            let mut newsh = sh.clone();
+            newsh.angular_momentum = Vec::new();
+            newsh.coefficients = Vec::new();
+
+            let ngen = sh.coefficients.len();
+            for g in 0..ngen {
+                if am[g] > max_am {
+                    let mut newsh2 = sh.clone();
+                    newsh2.angular_momentum = vec![am[g]];
+                    newsh2.coefficients = vec![coeff[g].clone()];
+                    newshells.push(newsh2);
+                } else {
+                    newsh.angular_momentum.push(am[g]);
+                    newsh.coefficients.push(coeff[g].clone());
+                }
+            }
+
+            newshells.insert(0, newsh);
+        } else {
+            newshells.push(sh.clone());
+        }
+    }
+
+    *electron_shells = newshells;
 }
 
 /// Split combined shells (sp, spd, spdf) into separate shells.
@@ -162,44 +208,35 @@ pub fn prune_basis(basis: &mut BseBasis) {
 /// afterward to clean up.
 pub fn uncontract_spdf(basis: &mut BseBasis, max_am: i32) {
     for (_, el) in basis.elements.iter_mut() {
-        let Some(electron_shells) = &mut el.electron_shells else {
-            continue;
-        };
+        uncontract_spdf_in_element(el, max_am);
+    }
+}
 
-        let mut newshells = Vec::new();
+/// Remove general contractions from a basis element.
+pub fn uncontract_general_in_element(el: &mut BseBasisElement) {
+    let Some(ref mut electron_shells) = el.electron_shells else {
+        return;
+    };
 
-        for sh in electron_shells.iter() {
-            // am will be a list
-            let am = &sh.angular_momentum;
-            let coeff = &sh.coefficients;
+    let mut new_shells = Vec::new();
 
-            // if this is an sp, spd,... orbital
-            if am.len() > 1 {
-                let mut newsh = sh.clone();
-                newsh.angular_momentum = Vec::new();
-                newsh.coefficients = Vec::new();
-
-                let ngen = sh.coefficients.len();
-                for g in 0..ngen {
-                    if am[g] > max_am {
-                        let mut newsh2 = sh.clone();
-                        newsh2.angular_momentum = vec![am[g]];
-                        newsh2.coefficients = vec![coeff[g].clone()];
-                        newshells.push(newsh2);
-                    } else {
-                        newsh.angular_momentum.push(am[g]);
-                        newsh.coefficients.push(coeff[g].clone());
-                    }
-                }
-
-                newshells.insert(0, newsh);
-            } else {
-                newshells.push(sh.clone());
+    for shell in electron_shells.iter() {
+        // See if we actually have to uncontract
+        // Also, don't uncontract sp, spd,.... orbitals
+        //      (leave that to uncontract_spdf)
+        if shell.coefficients.len() == 1 || shell.angular_momentum.len() > 1 {
+            new_shells.push(shell.clone());
+        } else if shell.angular_momentum.len() == 1 {
+            for coeff in &shell.coefficients {
+                // clone, then replace 'coefficients'
+                let mut new_shell = shell.clone();
+                new_shell.coefficients = vec![coeff.clone()];
+                new_shells.push(new_shell);
             }
         }
-
-        *electron_shells = newshells;
     }
+
+    *electron_shells = new_shells;
 }
 
 /// Remove general contractions from a basis set.
@@ -218,32 +255,36 @@ pub fn uncontract_spdf(basis: &mut BseBasis, max_am: i32) {
 /// for those.
 pub fn uncontract_general(basis: &mut BseBasis) {
     for (_, el) in basis.elements.iter_mut() {
-        let Some(ref mut electron_shells) = el.electron_shells else {
-            continue;
-        };
+        uncontract_general_in_element(el);
+    }
+    prune_basis(basis);
+}
 
-        let mut new_shells = Vec::new();
+/// Fully uncontract a basis element to individual primitives
+pub fn uncontract_segmented_in_element(el: &mut BseBasisElement) {
+    let Some(ref mut electron_shells) = el.electron_shells else {
+        return;
+    };
 
-        for shell in electron_shells.iter() {
-            // See if we actually have to uncontract
-            // Also, don't uncontract sp, spd,.... orbitals
-            //      (leave that to uncontract_spdf)
-            if shell.coefficients.len() == 1 || shell.angular_momentum.len() > 1 {
-                new_shells.push(shell.clone());
-            } else if shell.angular_momentum.len() == 1 {
-                for coeff in &shell.coefficients {
-                    // clone, then replace 'coefficients'
-                    let mut new_shell = shell.clone();
-                    new_shell.coefficients = vec![coeff.clone()];
-                    new_shells.push(new_shell);
-                }
-            }
+    let mut new_shells = Vec::new();
+
+    for shell in electron_shells.iter() {
+        let exponents = &shell.exponents;
+        let nam = shell.angular_momentum.len();
+
+        for exponent in exponents.iter() {
+            let mut new_shell = shell.clone();
+            new_shell.exponents = vec![exponent.clone()];
+            new_shell.coefficients = vec![vec!["1.00000000E+00".to_string(); nam]];
+
+            // Transpose the coefficients
+            new_shell.coefficients = misc::transpose_matrix(&new_shell.coefficients);
+
+            new_shells.push(new_shell);
         }
-
-        *electron_shells = new_shells;
     }
 
-    prune_basis(basis);
+    *electron_shells = new_shells;
 }
 
 /// Fully uncontract a basis set to individual primitives.
@@ -257,30 +298,95 @@ pub fn uncontract_general(basis: &mut BseBasis) {
 /// * `basis` - The basis set to modify (modified in place)
 pub fn uncontract_segmented(basis: &mut BseBasis) {
     for (_, el) in basis.elements.iter_mut() {
-        let Some(electron_shells) = &mut el.electron_shells else {
+        uncontract_segmented_in_element(el);
+    }
+}
+
+/// Combine shells of the same angular momentum into general contractions for a
+/// basis element.
+pub fn make_general_in_element(el: &mut BseBasisElement) {
+    const ZERO: &str = "0.00000000";
+
+    let electron_shells = match &mut el.electron_shells {
+        Some(shells) => shells,
+        None => return,
+    };
+
+    let mut newshells = Vec::new();
+
+    // See what we have
+    let mut all_am = Vec::new();
+    for sh in electron_shells.iter() {
+        let am = &sh.angular_momentum;
+
+        // Skip sp shells
+        if am.len() > 1 {
+            newshells.push(sh.clone());
             continue;
+        }
+
+        if !all_am.contains(am) {
+            all_am.push(am.clone());
+        }
+    }
+
+    all_am.sort();
+
+    for am in all_am {
+        let mut newsh = BseElectronShell {
+            angular_momentum: am.clone(),
+            exponents: Vec::new(),
+            coefficients: Vec::new(),
+            region: String::new(),
+            function_type: String::new(),
         };
 
-        let mut new_shells = Vec::new();
-
-        for shell in electron_shells.iter() {
-            let exponents = &shell.exponents;
-            let nam = shell.angular_momentum.len();
-
-            for exponent in exponents.iter() {
-                let mut new_shell = shell.clone();
-                new_shell.exponents = vec![exponent.clone()];
-                new_shell.coefficients = vec![vec!["1.00000000E+00".to_string(); nam]];
-
-                // Transpose the coefficients
-                new_shell.coefficients = misc::transpose_matrix(&new_shell.coefficients);
-
-                new_shells.push(new_shell);
+        // Do exponents first
+        for sh in electron_shells.iter() {
+            if sh.angular_momentum == am {
+                newsh.exponents.extend(sh.exponents.clone());
             }
         }
 
-        *electron_shells = new_shells;
+        // Number of primitives in the new shell
+        let nprim = newsh.exponents.len();
+
+        let mut cur_prim = 0;
+        for sh in electron_shells.iter() {
+            if sh.angular_momentum != am {
+                continue;
+            }
+
+            if newsh.function_type.is_empty() {
+                newsh.function_type = sh.function_type.clone();
+            }
+
+            // Make sure the shells we are merging have the same function types
+            let ft1 = &newsh.function_type;
+            let ft2 = &sh.function_type;
+
+            // Check if one function type is the subset of another
+            // (should handle gto/gto_spherical, etc)
+            if !ft1.contains(ft2) && !ft2.contains(ft1) {
+                panic!("Cannot make general contraction of different function types");
+            }
+
+            let ngen = sh.coefficients.len();
+
+            for g in 0..ngen {
+                let mut coef = vec![ZERO.to_string(); cur_prim];
+                coef.extend(sh.coefficients[g].clone());
+                coef.extend(vec![ZERO.to_string(); nprim - coef.len()]);
+                newsh.coefficients.push(coef);
+            }
+
+            cur_prim += sh.exponents.len();
+        }
+
+        newshells.push(newsh);
     }
+
+    el.electron_shells = Some(newshells);
 }
 
 /// Combine shells of the same angular momentum into general contractions.
@@ -298,93 +404,12 @@ pub fn uncontract_segmented(basis: &mut BseBasis) {
 /// The output may not be aesthetically pleasing. Use
 /// [`sort_basis`][crate::sort::sort_basis] afterward for better formatting.
 pub fn make_general(basis: &mut BseBasis, skip_spdf: bool) {
-    let zero = "0.00000000";
-
     if !skip_spdf {
         uncontract_spdf(basis, 0);
     }
 
     for (_, el) in basis.elements.iter_mut() {
-        let electron_shells = match &mut el.electron_shells {
-            Some(shells) => shells,
-            None => continue,
-        };
-
-        let mut newshells = Vec::new();
-
-        // See what we have
-        let mut all_am = Vec::new();
-        for sh in electron_shells.iter() {
-            let am = &sh.angular_momentum;
-
-            // Skip sp shells
-            if am.len() > 1 {
-                newshells.push(sh.clone());
-                continue;
-            }
-
-            if !all_am.contains(am) {
-                all_am.push(am.clone());
-            }
-        }
-
-        all_am.sort();
-
-        for am in all_am {
-            let mut newsh = BseElectronShell {
-                angular_momentum: am.clone(),
-                exponents: Vec::new(),
-                coefficients: Vec::new(),
-                region: String::new(),
-                function_type: String::new(),
-            };
-
-            // Do exponents first
-            for sh in electron_shells.iter() {
-                if sh.angular_momentum == am {
-                    newsh.exponents.extend(sh.exponents.clone());
-                }
-            }
-
-            // Number of primitives in the new shell
-            let nprim = newsh.exponents.len();
-
-            let mut cur_prim = 0;
-            for sh in electron_shells.iter() {
-                if sh.angular_momentum != am {
-                    continue;
-                }
-
-                if newsh.function_type.is_empty() {
-                    newsh.function_type = sh.function_type.clone();
-                }
-
-                // Make sure the shells we are merging have the same function types
-                let ft1 = &newsh.function_type;
-                let ft2 = &sh.function_type;
-
-                // Check if one function type is the subset of another
-                // (should handle gto/gto_spherical, etc)
-                if !ft1.contains(ft2) && !ft2.contains(ft1) {
-                    panic!("Cannot make general contraction of different function types");
-                }
-
-                let ngen = sh.coefficients.len();
-
-                for g in 0..ngen {
-                    let mut coef = vec![zero.to_string(); cur_prim];
-                    coef.extend(sh.coefficients[g].clone());
-                    coef.extend(vec![zero.to_string(); nprim - coef.len()]);
-                    newsh.coefficients.push(coef);
-                }
-
-                cur_prim += sh.exponents.len();
-            }
-
-            newshells.push(newsh);
-        }
-
-        el.electron_shells = Some(newshells);
+        make_general_in_element(el);
     }
 
     // If the basis was read in from a segmented format, it will have
@@ -421,6 +446,24 @@ fn free_primitives(coeffs: &[Vec<String>]) -> Vec<usize> {
     csum.iter().enumerate().filter(|(_, val)| **val != 0.0).map(|(idx, _)| idx).collect_vec()
 }
 
+/// Remove uncontracted (free) primitives from a basis element.
+pub fn remove_free_primitives_in_element(el: &mut BseBasisElement) {
+    let Some(ref mut electron_shells) = el.electron_shells else {
+        return;
+    };
+
+    let mut new_shells = Vec::new();
+    for sh in electron_shells.iter_mut() {
+        // find contractions
+        let coefficients = sh.coefficients.iter().filter(|&col| !is_single_column(col)).cloned().collect_vec();
+        if !coefficients.is_empty() {
+            sh.coefficients = coefficients;
+            new_shells.push(sh.clone());
+        }
+    }
+    el.electron_shells = Some(new_shells);
+}
+
 /// Remove uncontracted (free) primitives from a basis set.
 ///
 /// Free primitives have coefficient 1.0 in only one contraction.
@@ -435,19 +478,63 @@ pub fn remove_free_primitives(basis: &mut BseBasis) {
             continue;
         }
 
-        let mut new_shells: Vec<BseElectronShell> = vec![];
-        for sh in el.electron_shells.as_mut().unwrap() {
-            // find contractions
-            let coefficients = sh.coefficients.iter().filter(|&col| !is_single_column(col)).cloned().collect_vec();
-            if !coefficients.is_empty() {
-                sh.coefficients = coefficients;
-                new_shells.push(sh.clone());
-            }
-        }
-        el.electron_shells = Some(new_shells);
+        remove_free_primitives_in_element(el);
+    }
+    // TODO: prune_basis
+}
+
+/// Optimizes the general contraction using the method of Hashimoto et al for a
+/// basis element.
+pub fn optimize_general_in_element(el: &mut BseBasisElement) {
+    if el.electron_shells.is_none() {
+        return;
     }
 
-    // TODO: prune_basis
+    let elshells = el.electron_shells.as_mut().unwrap();
+    for sh in elshells {
+        let coefficients = &mut sh.coefficients;
+        let nam = sh.angular_momentum.len();
+
+        // Skip sp shells and shells with only one general contraction
+        if nam > 1 || coefficients.len() < 2 {
+            continue;
+        }
+
+        // First, find columns (general contractions) with a single non-zero value
+        let single_columns: Vec<usize> =
+            coefficients.iter().enumerate().filter(|(_, c)| is_single_column(c)).map(|(idx, _)| idx).collect();
+
+        // Find the corresponding rows that have a value in one of these columns
+        // Note that at this stage, the row may have coefficients in more than one
+        // column. That is what we are looking for
+
+        // Also, test to see that each row is only represented once. That is, there
+        // should be no rows that are part of single columns (this would
+        // represent duplicate shells). This can happen in poorly-formatted
+        // basis sets and is an error
+        let mut row_col_pairs = Vec::new();
+        let mut all_row_idx = Vec::new();
+        for &col_idx in &single_columns {
+            let col = &coefficients[col_idx];
+            col.iter().enumerate().for_each(|(row_idx, value)| {
+                if value.parse::<f64>().unwrap() != 0.0 && !all_row_idx.contains(&row_idx) {
+                    // Store the index of the nonzero value in single_columns
+                    row_col_pairs.push((row_idx, col_idx));
+                    all_row_idx.push(row_idx);
+                }
+            });
+        }
+
+        // Now for each row/col pair, zero out the entire row
+        // EXCEPT for the column that has the single value
+        for (row_idx, col_idx) in row_col_pairs {
+            for (idx, col) in coefficients.iter_mut().enumerate() {
+                if col[row_idx].parse::<f64>().unwrap() != 0.0 && col_idx != idx {
+                    col[row_idx] = "0.0000000E+00".to_string();
+                }
+            }
+        }
+    }
 }
 
 /// Optimizes the general contraction using the method of Hashimoto et al
@@ -462,56 +549,93 @@ pub fn optimize_general(basis: &mut BseBasis) {
     // Make as generally-contracted as possible first
     make_general(basis, true);
 
-    for (_, eldata) in basis.elements.iter_mut() {
-        if eldata.electron_shells.is_none() {
+    for (_, el) in basis.elements.iter_mut() {
+        optimize_general_in_element(el);
+    }
+}
+
+/// Add diffuse or steep functions via even-tempered extrapolation in a basis
+/// element.
+pub fn geometric_augmentation_in_element(el: &mut BseBasisElement, nadd: i32, steep: bool) {
+    let eldata = el.clone();
+
+    let Some(electron_shells) = &eldata.electron_shells else {
+        return;
+    };
+
+    let mut new_shells = Vec::new();
+
+    for shell in electron_shells {
+        // Find the two smallest exponents. The smallest is alpha
+        // beta is the ratio alpha/(next smallest)
+        // Keep track of the indices as well
+        let mut exponents: Vec<(f64, usize)> =
+            shell.exponents.iter().enumerate().map(|(idx, x)| (x.parse::<f64>().unwrap(), idx)).collect();
+
+        exponents.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+        if exponents.len() < 2 {
+            // Need at least two exponents to perform augmentation
             continue;
         }
 
-        let elshells = eldata.electron_shells.as_mut().unwrap();
-        for sh in elshells {
-            let coefficients = &mut sh.coefficients;
-            let nam = sh.angular_momentum.len();
+        let (ref_idx, next_idx) = if steep {
+            // If we're augmenting by steep functions, the
+            // references are the steepest and second-steepest
+            // function.
+            (exponents.len() - 1, exponents.len() - 2)
+        } else {
+            // If we're augmenting by diffuse functions, the
+            // references are the diffusemost and second-most
+            // diffuse function.
+            (0, 1)
+        };
 
-            // Skip sp shells and shells with only one general contraction
-            if nam > 1 || coefficients.len() < 2 {
-                continue;
-            }
+        let (ref_exp, ref_idx) = exponents[ref_idx];
+        let (next_exp, next_idx) = exponents[next_idx];
+        // Even-tempered spacing parameter
+        let beta = ref_exp / next_exp;
 
-            // First, find columns (general contractions) with a single non-zero value
-            let single_columns: Vec<usize> =
-                coefficients.iter().enumerate().filter(|(_, c)| is_single_column(c)).map(|(idx, _)| idx).collect();
-
-            // Find the corresponding rows that have a value in one of these columns
-            // Note that at this stage, the row may have coefficients in more than one
-            // column. That is what we are looking for
-
-            // Also, test to see that each row is only represented once. That is, there
-            // should be no rows that are part of single columns (this would
-            // represent duplicate shells). This can happen in poorly-formatted
-            // basis sets and is an error
-            let mut row_col_pairs = Vec::new();
-            let mut all_row_idx = Vec::new();
-            for &col_idx in &single_columns {
-                let col = &coefficients[col_idx];
-                col.iter().enumerate().for_each(|(row_idx, value)| {
-                    if value.parse::<f64>().unwrap() != 0.0 && !all_row_idx.contains(&row_idx) {
-                        // Store the index of the nonzero value in single_columns
-                        row_col_pairs.push((row_idx, col_idx));
-                        all_row_idx.push(row_idx);
-                    }
-                });
-            }
-
-            // Now for each row/col pair, zero out the entire row
-            // EXCEPT for the column that has the single value
-            for (row_idx, col_idx) in row_col_pairs {
-                for (idx, col) in coefficients.iter_mut().enumerate() {
-                    if col[row_idx].parse::<f64>().unwrap() != 0.0 && col_idx != idx {
-                        col[row_idx] = "0.0000000E+00".to_string();
-                    }
-                }
-            }
+        if (ref_exp - next_exp).abs() < f64::EPSILON {
+            panic!(
+                    "The two outermost exponents are the same. Duplicate exponents are not a good thing here. Exponent: {ref_exp}"
+                );
         }
+
+        // Test that the primitives for the references are free.
+        let free_prims = free_primitives(&shell.coefficients);
+        if !free_prims.contains(&ref_idx) || !free_prims.contains(&next_idx) {
+            // The shell does not have enough free primitives so
+            // skip the extrapolation.
+            continue;
+        }
+
+        // Form new exponents
+        let mut new_exponents = Vec::new();
+        for i in 1..=nadd {
+            new_exponents.push(ref_exp * beta.powi(i));
+        }
+
+        let new_exponents: Vec<String> = new_exponents.iter().map(|&x| misc::format_exponent(x)).collect();
+
+        // add the new exponents as new uncontracted shells
+        for ex in new_exponents {
+            new_shells.push(BseElectronShell {
+                function_type: shell.function_type.clone(),
+                region: shell.region.clone(),
+                angular_momentum: shell.angular_momentum.clone(),
+                exponents: vec![ex],
+                coefficients: vec![vec!["1.00000000".to_string()]],
+            });
+        }
+    }
+
+    // add the shells to the original basis set
+    if el.electron_shells.is_none() {
+        el.electron_shells = Some(Vec::new());
+    }
+    if let Some(shells) = &mut el.electron_shells {
+        shells.extend(new_shells);
     }
 }
 
@@ -543,8 +667,7 @@ pub fn geometric_augmentation(basis: &mut BseBasis, nadd: i32, steep: bool) {
 
     // We need to combine shells by AM
     // make_general is assumed to be implemented elsewhere
-    let mut basis_copy = basis.clone();
-    make_general(&mut basis_copy, true);
+    make_general(basis, true);
 
     // From Woon & Dunning, Jr
     // J. Chem. Phys. v100, No. 4, p. 2975 (1994)
@@ -560,87 +683,8 @@ pub fn geometric_augmentation(basis: &mut BseBasis, nadd: i32, steep: bool) {
     // This applies to all angular momentum (which have been combined into
     // shells already)
 
-    for (el_z, eldata) in basis_copy.elements.iter() {
-        let Some(electron_shells) = &eldata.electron_shells else {
-            continue;
-        };
-
-        let mut new_shells = Vec::new();
-
-        for shell in electron_shells {
-            // Find the two smallest exponents. The smallest is alpha
-            // beta is the ratio alpha/(next smallest)
-            // Keep track of the indices as well
-            let mut exponents: Vec<(f64, usize)> =
-                shell.exponents.iter().enumerate().map(|(idx, x)| (x.parse::<f64>().unwrap(), idx)).collect();
-
-            exponents.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-
-            if exponents.len() < 2 {
-                // Need at least two exponents to perform augmentation
-                continue;
-            }
-
-            let (ref_idx, next_idx) = if steep {
-                // If we're augmenting by steep functions, the
-                // references are the steepest and second-steepest
-                // function.
-                (exponents.len() - 1, exponents.len() - 2)
-            } else {
-                // If we're augmenting by diffuse functions, the
-                // references are the diffusemost and second-most
-                // diffuse function.
-                (0, 1)
-            };
-
-            let (ref_exp, ref_idx) = exponents[ref_idx];
-            let (next_exp, next_idx) = exponents[next_idx];
-            // Even-tempered spacing parameter
-            let beta = ref_exp / next_exp;
-
-            if (ref_exp - next_exp).abs() < f64::EPSILON {
-                panic!(
-                    "The two outermost exponents are the same. Duplicate exponents are not a good thing here. Exponent: {ref_exp}"
-                );
-            }
-
-            // Test that the primitives for the references are free.
-            let free_prims = free_primitives(&shell.coefficients);
-            if !free_prims.contains(&ref_idx) || !free_prims.contains(&next_idx) {
-                // The shell does not have enough free primitives so
-                // skip the extrapolation.
-                continue;
-            }
-
-            // Form new exponents
-            let mut new_exponents = Vec::new();
-            for i in 1..=nadd {
-                new_exponents.push(ref_exp * beta.powi(i));
-            }
-
-            let new_exponents: Vec<String> = new_exponents.iter().map(|&x| misc::format_exponent(x)).collect();
-
-            // add the new exponents as new uncontracted shells
-            for ex in new_exponents {
-                new_shells.push(BseElectronShell {
-                    function_type: shell.function_type.clone(),
-                    region: shell.region.clone(),
-                    angular_momentum: shell.angular_momentum.clone(),
-                    exponents: vec![ex],
-                    coefficients: vec![vec!["1.00000000".to_string()]],
-                });
-            }
-        }
-
-        // add the shells to the original basis set
-        if let Some(element) = basis.elements.get_mut(el_z) {
-            if element.electron_shells.is_none() {
-                element.electron_shells = Some(Vec::new());
-            }
-            if let Some(shells) = &mut element.electron_shells {
-                shells.extend(new_shells);
-            }
-        }
+    for (_, el) in basis.elements.iter_mut() {
+        geometric_augmentation_in_element(el, nadd, steep);
     }
 }
 
