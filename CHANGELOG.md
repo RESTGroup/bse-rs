@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.2 -- 2026-04-23
+
+Bug fix:
+
+- Fix a bug in nwchem handling primitive matrix check
+
 ## v0.1.2 -- 2026-04-22
 
 API functionality addition:
