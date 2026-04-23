@@ -402,6 +402,14 @@ impl TryFrom<String> for BseGetBasisArgs {
     }
 }
 
+impl TryFrom<Option<&str>> for BseGetBasisArgs {
+    type Error = BseError;
+
+    fn try_from(s: Option<&str>) -> Result<Self, Self::Error> {
+        Self::try_from(s.unwrap_or(""))
+    }
+}
+
 /// Obtain a basis set.
 ///
 /// This is the main function for getting basis set information.
@@ -461,6 +469,9 @@ impl TryFrom<String> for BseGetBasisArgs {
 /// let basis: BseBasis = get_basis_f("sto-3g", args).unwrap();
 /// println!("Basis set: {basis:#?}");
 /// ```
+///
+/// You can also pass `None` as argument, then the default `BseGetBasisArgs`
+/// will be used (which means all elements, latest version, no manipulations).
 pub fn get_basis(name: &str, args: impl TryInto<BseGetBasisArgs, Error: Into<BseError>>) -> BseBasis {
     get_basis_f(name, args).unwrap()
 }
