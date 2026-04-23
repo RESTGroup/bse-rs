@@ -52,7 +52,7 @@ fn parse_electron_lines(
         // How many columns of coefficients do we have?
         // Only if this is a fused shell do we know.
         let ngen = if shell_am.len() > 1 { Some(shell_am.len()) } else { None };
-        let (exponents, coefficients) = helpers::parse_primitive_matrix(&shl_lines[1..], ngen, None, None)?;
+        let (exponents, coefficients) = helpers::parse_primitive_matrix(&shl_lines[1..], None, ngen, None)?;
 
         let shell = BseElectronShell {
             function_type,
