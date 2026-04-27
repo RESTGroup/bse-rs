@@ -41,23 +41,100 @@ fn get_bse_data_dir_manifest() -> String {
         .map_or(String::new(), |dir| format!("{dir}/basis_set_exchange/basis_set_exchange/data"))
 }
 
+/// Try to deduce BSE data directory from the Python executable location in
+/// PATH.
+///
+/// Instead of spawning a Python subprocess, this function searches for the
+/// Python executable in PATH, resolves symlinks, and deduces the site-packages
+/// path from the directory structure. This avoids the overhead of starting
+/// Python, which can be significant on systems with slow disk I/O.
+///
+/// The typical conda layout is:
+/// ```text
+/// <conda_root>/envs/<env_name>/bin/python
+/// <conda_root>/envs/<env_name>/lib/pythonX.Y/site-packages/basis_set_exchange/data
+/// ```
+fn get_bse_data_dir_from_python_path() -> Option<String> {
+    use std::collections::HashSet;
+
+    let path_var = std::env::var("PATH").ok()?;
+    let mut checked_prefixes: HashSet<std::path::PathBuf> = HashSet::new();
+
+    for dir in path_var.split(':') {
+        for name in &["python3", "python"] {
+            let candidate = std::path::Path::new(dir).join(name);
+            if !candidate.is_file() {
+                continue;
+            }
+
+            // Resolve symlinks to get the real path
+            let real_path = match std::fs::canonicalize(&candidate) {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
+
+            // The real path should be in a bin/ directory
+            let bin_dir = real_path.parent()?;
+            if bin_dir.file_name().is_none_or(|n| n != "bin") {
+                continue;
+            }
+
+            // The prefix is the parent of bin/
+            let prefix = bin_dir.parent()?;
+            if !checked_prefixes.insert(prefix.to_path_buf()) {
+                continue; // Already checked this prefix
+            }
+
+            // Look for lib/pythonX.Y/site-packages/basis_set_exchange/data
+            let lib_dir = prefix.join("lib");
+            if !lib_dir.is_dir() {
+                continue;
+            }
+
+            if let Ok(entries) = std::fs::read_dir(&lib_dir) {
+                for entry in entries.flatten() {
+                    let file_name = entry.file_name();
+                    let name_str = file_name.to_string_lossy();
+                    // Match pythonX.Y pattern (e.g., python3.9, python3.12) to
+                    // avoid truncated symlinks like python3.1 -> python3.12
+                    if name_str.starts_with("python") && entry.path().is_dir() && name_str.len() > "python3".len() {
+                        let suffix = &name_str["python3".len()..];
+                        if suffix.starts_with('.') && suffix[1..].split('.').all(|part| part.parse::<u32>().is_ok()) {
+                            let data_dir = entry.path().join("site-packages").join("basis_set_exchange").join("data");
+                            if data_dir.join("METADATA.json").exists() {
+                                return data_dir.to_str().map(|s| s.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
 /// Try to detect BSE data directory via Python's basis_set_exchange package.
 ///
-/// This function attempts to run Python to query the installed
-/// `basis_set_exchange` package for its data directory location. It does not
-/// require pyo3 or linking to libpython - it simply spawns a subprocess.
+/// First attempts to deduce the data directory from the Python executable
+/// location in PATH (fast, no subprocess). If that fails, falls back to
+/// spawning a Python subprocess to query the installed package directly.
 ///
 /// # Returns
 ///
-/// - `Some(String)` if Python is available and `basis_set_exchange` is
-///   installed
-/// - `None` if Python is not available, the package is not installed, or the
-///   subprocess fails
+/// - `Some(String)` if the data directory is found
+/// - `None` if Python is not available, the package is not installed, or
+///   neither method succeeds
 #[once]
 fn get_bse_data_dir_python() -> Option<String> {
+    // Fast path: deduce from Python executable location (no subprocess)
+    if let Some(dir) = get_bse_data_dir_from_python_path() {
+        return Some(dir);
+    }
+
+    // Fallback: spawn Python subprocess
     use std::process::Command;
 
-    // Try multiple Python interpreters in order of preference
     let python_commands = ["python3", "python"];
 
     for python in python_commands {
@@ -87,27 +164,39 @@ fn get_bse_data_dir_python() -> Option<String> {
 ///    package.
 /// 4. The directory specified by the `CARGO_MANIFEST_DIR` (the directory where
 ///    your crate built).
+///
+/// Each candidate is checked for validity (presence of `METADATA.json`) before
+/// moving on to the next, so expensive lookups (like Python detection) are
+/// skipped if an earlier candidate succeeds.
 pub fn get_bse_data_dir() -> Option<String> {
-    let dir_specified = get_bse_data_dir_specified();
-    let dir_env = get_bse_data_dir_env();
-    let dir_python = get_bse_data_dir_python();
-    let dir_manifest = get_bse_data_dir_manifest();
-
     // Helper to check if a directory contains METADATA.json
     let is_valid_dir = |dir: &str| std::path::Path::new(&format!("{dir}/METADATA.json")).exists();
 
-    // Check in order: specified -> env -> python -> manifest
+    // 1. Check user-specified directory
+    let dir_specified = get_bse_data_dir_specified();
     if !dir_specified.is_empty() && is_valid_dir(&dir_specified) {
-        Some(dir_specified)
-    } else if !dir_env.is_empty() && is_valid_dir(&dir_env) {
-        Some(dir_env)
-    } else if dir_python.as_ref().is_some_and(|d| is_valid_dir(d)) {
-        dir_python
-    } else if !dir_manifest.is_empty() && is_valid_dir(&dir_manifest) {
-        Some(dir_manifest)
-    } else {
-        None
+        return Some(dir_specified);
     }
+
+    // 2. Check BSE_DATA_DIR environment variable
+    let dir_env = get_bse_data_dir_env();
+    if !dir_env.is_empty() && is_valid_dir(&dir_env) {
+        return Some(dir_env);
+    }
+
+    // 3. Check Python-detected directory (may be expensive)
+    let dir_python = get_bse_data_dir_python();
+    if dir_python.as_ref().is_some_and(|d| is_valid_dir(d)) {
+        return dir_python;
+    }
+
+    // 4. Check CARGO_MANIFEST_DIR-based directory
+    let dir_manifest = get_bse_data_dir_manifest();
+    if !dir_manifest.is_empty() && is_valid_dir(&dir_manifest) {
+        return Some(dir_manifest);
+    }
+
+    None
 }
 
 /* #endregion */
